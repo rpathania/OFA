@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding='windows-1252'?>
+<!DOCTYPE JboPackage SYSTEM "jbo_03_01.dtd">
+<!-- $Header: server.xml 120.1 2005/07/02 02:05:18 appldev noship $ -->
+
+<JboPackage
+   Name="server"
+   SeparateXMLFiles="true"
+   PackageName="oracle.apps.fnd.sso.server" >
+   <DesignTime>
+      <Attr Name="_version" Value="9.0.3.10.31" />
+      <Attr Name="_ejbPackage" Value="false" />
+   </DesignTime>
+   <Containee
+      Name="LocalLoginAM"
+      FullName="oracle.apps.fnd.sso.server.LocalLoginAM"
+      ObjectType="AppModule" >
+   </Containee>
+   <Containee
+      Name="SSOAppsUsersVO"
+      FullName="oracle.apps.fnd.sso.server.SSOAppsUsersVO"
+      ObjectType="ViewObject" >
+   </Containee>
+   <Containee
+      Name="PickUserAM"
+      FullName="oracle.apps.fnd.sso.server.PickUserAM"
+      ObjectType="AppModule" >
+   </Containee>
+</JboPackage>

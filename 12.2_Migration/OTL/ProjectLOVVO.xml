@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding='WINDOWS-1252'?>
+<!DOCTYPE ViewObject SYSTEM "jbo_03_01.dtd">
+
+<!-- $Header: ProjectLOVVO.xml 115.22 2002/12/11 18:40:08 mstewart ship $ -->
+
+<ViewObject
+   Name="ProjectLOVVO"
+   TimeStamp="1019576051145"
+   OrderBy="projectnumber"
+   BindingStyle="Oracle"
+   CustomQuery="true"
+   RowClass="oracle.apps.fnd.framework.server.OAViewRowImpl"
+   ComponentClass="oracle.apps.hxc.selfservice.timecard.server.ProjectLOVVOImpl"
+   UseGlueCode="false" >
+   <SQLQuery><![CDATA[
+select  
+    project_number projectnumber, 
+    project_name, 
+    project_id projectid,  
+    pa_online_projects_v2.start_date, 
+    completion_date, 
+    carrying_out_organization_id, 
+    taskid, 
+    'Labour Force' expenditureType, 
+    'ST' SystemLinkageFunction 
+from    pa_online_projects_v2 
+INNER JOIN (select EMPLOYEE_NUMBER 
+            from per_all_people_f 
+            where person_id = fnd_global.employee_id 
+            and sysdate between EFFECTIVE_START_DATE and EFFECTIVE_END_DATE) pers  
+    ON pa_online_projects_v2.EMPLOYEE_NUMBER = pers.EMPLOYEE_NUMBER
+   ]]></SQLQuery>
+   <DesignTime>
+      <Attr Name="_version" Value="5.0.0.6.84" />
+      <Attr Name="_CodeGenFlagNew" Value="36" />
+   </DesignTime>
+   <ViewAttribute
+      Name="ProjectNumber"
+      IsUpdateable="false"
+      IsQueriable="false"
+      IsPersistent="false"
+      Type="java.lang.String"
+      Expression="ProjectNumber"
+      SQLType="VARCHAR"
+      Precision="25"
+      AliasName="ProjectNumber" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="ProjectName"
+      IsQueriable="false"
+      IsPersistent="false"
+      Type="java.lang.String"
+      Expression="PROJECT_NAME"
+      SQLType="VARCHAR"
+      Precision="30"
+      AliasName="PROJECT_NAME" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="30" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="ProjectId"
+      IsUpdateable="false"
+      IsQueriable="false"
+      IsPersistent="false"
+      Type="oracle.jbo.domain.Number"
+      Expression="ProjectId"
+      SQLType="NUMERIC"
+      Precision="15"
+      Scale="0" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="StartDate"
+      IsQueriable="false"
+      IsPersistent="false"
+      Type="oracle.jbo.domain.Date"
+      Expression="START_DATE"
+      SQLType="DATE"
+      AliasName="START_DATE" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="CompletionDate"
+      IsQueriable="false"
+      IsPersistent="false"
+      Type="oracle.jbo.domain.Date"
+      Expression="COMPLETION_DATE"
+      SQLType="DATE"
+      AliasName="COMPLETION_DATE" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="CarryingOutOrganizationId"
+      IsQueriable="false"
+      IsPersistent="false"
+      Type="oracle.jbo.domain.Number"
+      Expression="CARRYING_OUT_ORGANIZATION_ID"
+      SQLType="NUMERIC"
+      Precision="15"
+      Scale="0"
+      AliasName="CARRYING_OUT_ORGANIZATION_ID" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+       <ViewAttribute
+      Name="TaskID"
+      IsUpdateable="false"
+      IsQueriable="false"
+      IsPersistent="false"
+      Type="oracle.jbo.domain.Number"
+      Expression="TaskID"
+      SQLType="NUMERIC"
+      Precision="15"
+      Scale="0" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+      <ViewAttribute
+      Name="ExpenditureType"
+      IsQueriable="false"
+      IsPersistent="false"
+      IsNotNull="true"
+      Precision="30"
+      Type="java.lang.String"
+      AliasName="EXPENDITURETYPE"
+      ColumnType="VARCHAR2"
+      Expression="EXPENDITURETYPE"
+      SQLType="VARCHAR" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="30" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="SystemLinkageFunction"
+      IsQueriable="false"
+      IsPersistent="false"
+      IsNotNull="true"
+      Precision="3"
+      Type="java.lang.String"
+      AliasName="SYSTEMLINKAGEFUNCTION"
+      ColumnType="VARCHAR2"
+      Expression="SYSTEMLINKAGEFUNCTION"
+      SQLType="VARCHAR" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="3" />
+      </DesignTime>
+   </ViewAttribute>
+</ViewObject>

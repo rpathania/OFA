@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding='WINDOWS-1252'?>
+<!DOCTYPE ViewObject SYSTEM "jbo_03_01.dtd">
+
+<!-- $Header: Custom1VO.xml 120.2 2005/06/12 14:16:16 aroussel noship $ -->
+
+<ViewObject
+   Name="Custom1VO"
+   TimeStamp="1014233410777"
+   BindingStyle="Oracle"
+   CustomQuery="true"
+   RowClass="oracle.apps.fnd.framework.server.OAViewRowImpl"
+   ComponentClass="oracle.apps.hxc.selfservice.timecard.server.Custom1VOImpl"
+   UseGlueCode="false" >
+   <SQLQuery><![CDATA[
+select display_value displayvalue, value
+from hxc_cui_custom1_v
+   ]]></SQLQuery>
+   <DesignTime>
+      <Attr Name="_version" Value="5.0.0.6.84" />
+      <Attr Name="_CodeGenFlagNew" Value="36" />
+   </DesignTime>
+   <ViewAttribute
+      Name="DisplayValue"
+      IsQueriable="false"
+      IsPersistent="false"
+      Type="java.lang.String"
+      Expression="DISPLAYVALUE"
+      SQLType="VARCHAR"
+      Precision="30"
+      AliasName="DISPLAYVALUE" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="30" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="Value"
+      IsQueriable="false"
+      IsPersistent="false"
+      Type="java.lang.String"
+      Expression="VALUE"
+      SQLType="VARCHAR"
+      Precision="15"
+      AliasName="VALUE" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="15" />
+      </DesignTime>
+   </ViewAttribute>
+</ViewObject>

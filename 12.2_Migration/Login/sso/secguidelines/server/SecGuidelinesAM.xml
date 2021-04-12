@@ -1,0 +1,50 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE AppModule SYSTEM "jbo_03_01.dtd">
+
+<!-- +======================================================================+ 
+ |    Copyright (c) 2005, 2017 Oracle and/or its affiliates.            | 
+ |                         All rights reserved.                         | 
+ |                           Version 12.0.0                             | 
+ +======================================================================+ 
+ $Header: SecGuidelinesAM.xml 120.0.12010000.2 2017/04/19 11:31:46 saarvapa noship $ -->
+
+<AppModule
+   Name="SecGuidelinesAM"
+   ComponentClass="oracle.apps.fnd.sso.secguidelines.server.SecGuidelinesAMImpl" >
+   <Properties>
+      <Property Name ="RETENTION_LEVEL" Value ="MANAGE_STATE" />
+   </Properties>
+   <DesignTime>
+      <Attr Name="_isCodegen" Value="true" />
+      <Attr Name="_version" Value="10.1.3.43.6" />
+      <Attr Name="_deployType" Value="0" />
+   </DesignTime>
+   <ViewUsage
+      Name="DetailsVO1"
+      ViewObjectName="oracle.apps.fnd.sso.secguidelines.server.DetailsVO" >
+   </ViewUsage>
+   <ViewUsage
+      Name="PoplistVO1"
+      ViewObjectName="oracle.apps.fnd.sso.secguidelines.server.PoplistVO" >
+   </ViewUsage>
+   <ViewUsage
+      Name="SecGuidelinesPVO1"
+      ViewObjectName="oracle.apps.fnd.sso.secguidelines.server.SecGuidelinesPVO" >
+   </ViewUsage>
+   <ViewUsage
+      Name="StatusVO1"
+      ViewObjectName="oracle.apps.fnd.sso.secguidelines.server.StatusVO" >
+   </ViewUsage>
+   <ViewUsage
+      Name="ConfigTypeVO1"
+      ViewObjectName="oracle.apps.fnd.sso.secguidelines.server.ConfigTypeVO" >
+   </ViewUsage>
+   <ViewUsage
+      Name="CriticalLevelVO1"
+      ViewObjectName="oracle.apps.fnd.sso.secguidelines.server.CriticalLevelVO" >
+   </ViewUsage>
+   <ViewUsage
+      Name="SecGuidelinesVO1"
+      ViewObjectName="oracle.apps.fnd.sso.secguidelines.server.SecGuidelinesVO" >
+   </ViewUsage>
+</AppModule>

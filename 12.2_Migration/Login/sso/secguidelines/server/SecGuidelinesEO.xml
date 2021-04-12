@@ -1,0 +1,215 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE Entity SYSTEM "jbo_03_01.dtd">
+
+<!-- +======================================================================+ -->
+<!-- |    Copyright (c) 2005, 2017 Oracle and/or its affiliates.            | -->
+<!-- |                         All rights reserved.                         | -->
+<!-- |                           Version 12.0.0                             | -->
+<!-- +======================================================================+ -->
+
+<!-- $Header: SecGuidelinesEO.xml 120.0.12010000.2 2017/04/19 12:05:32 saarvapa noship $ -->
+
+<Entity
+   Name="SecGuidelinesEO"
+   DBObjectType="table"
+   DBObjectName="FND_SEC_GUIDELINES"
+   AliasName="SecGuidelinesEO"
+   BindingStyle="OracleName"
+   UseGlueCode="false"
+   RowClass="oracle.apps.fnd.sso.secguidelines.server.SecGuidelinesEOImpl"
+   DefClass="oracle.apps.fnd.framework.server.OAEntityDefImpl"
+   CollClass="oracle.apps.fnd.framework.server.OAEntityCache" >
+   <DesignTime>
+      <Attr Name="_isCodegen" Value="true" />
+      <Attr Name="_version" Value="10.1.3.43.6" />
+      <AttrArray Name="_publishEvents">
+      </AttrArray>
+      <Attr Name="_panelSchema" Value="table|alias" />
+      <Attr Name="_codeGenFlag2" Value="Init|Delete|Access|Val" />
+   </DesignTime>
+   <Attribute
+      Name="Code"
+      IsNotNull="true"
+      Precision="20"
+      ColumnName="CODE"
+      Type="java.lang.String"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR"
+      TableName="FND_SEC_GUIDELINES" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="20" />
+      </DesignTime>
+   </Attribute>
+   <Attribute
+      Name="CheckScript"
+      Precision="200"
+      ColumnName="CHECK_SCRIPT"
+      Type="java.lang.String"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR"
+      TableName="FND_SEC_GUIDELINES" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="200" />
+      </DesignTime>
+   </Attribute>
+   <Attribute
+      Name="CheckScriptType"
+      Precision="10"
+      ColumnName="CHECK_SCRIPT_TYPE"
+      Type="java.lang.String"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR"
+      TableName="FND_SEC_GUIDELINES" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="10" />
+      </DesignTime>
+   </Attribute>
+   <Attribute
+      Name="FixScript"
+      Precision="200"
+      ColumnName="FIX_SCRIPT"
+      Type="java.lang.String"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR"
+      TableName="FND_SEC_GUIDELINES" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="200" />
+      </DesignTime>
+   </Attribute>
+   <Attribute
+      Name="FixScriptType"
+      Precision="10"
+      ColumnName="FIX_SCRIPT_TYPE"
+      Type="java.lang.String"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR"
+      TableName="FND_SEC_GUIDELINES" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="10" />
+      </DesignTime>
+   </Attribute>
+   <Attribute
+      Name="CriticalLevel"
+      ColumnName="CRITICAL_LEVEL"
+      Type="oracle.jbo.domain.Number"
+      ColumnType="NUMBER"
+      SQLType="NUMERIC"
+      TableName="FND_SEC_GUIDELINES" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="22" />
+      </DesignTime>
+   </Attribute>
+   <Attribute
+      Name="Autofixable"
+      IsNotNull="true"
+      Precision="1"
+      ColumnName="AUTOFIXABLE"
+      Type="java.lang.String"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR"
+      TableName="FND_SEC_GUIDELINES" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="1" />
+      </DesignTime>
+   </Attribute>
+   <Attribute
+      Name="LastUpdateDate"
+      IsNotNull="true"
+      ColumnName="LAST_UPDATE_DATE"
+      Type="oracle.jbo.domain.Date"
+      ColumnType="DATE"
+      SQLType="TIMESTAMP"
+      TableName="FND_SEC_GUIDELINES" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="7" />
+      </DesignTime>
+   </Attribute>
+   <Attribute
+      Name="LastUpdatedBy"
+      IsNotNull="true"
+      Precision="15"
+      Scale="0"
+      ColumnName="LAST_UPDATED_BY"
+      Type="oracle.jbo.domain.Number"
+      ColumnType="NUMBER"
+      SQLType="NUMERIC"
+      TableName="FND_SEC_GUIDELINES" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="22" />
+      </DesignTime>
+   </Attribute>
+   <Attribute
+      Name="CreationDate"
+      IsNotNull="true"
+      ColumnName="CREATION_DATE"
+      Type="oracle.jbo.domain.Date"
+      ColumnType="DATE"
+      SQLType="TIMESTAMP"
+      TableName="FND_SEC_GUIDELINES" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="7" />
+      </DesignTime>
+   </Attribute>
+   <Attribute
+      Name="CreatedBy"
+      IsNotNull="true"
+      Precision="15"
+      Scale="0"
+      ColumnName="CREATED_BY"
+      Type="oracle.jbo.domain.Number"
+      ColumnType="NUMBER"
+      SQLType="NUMERIC"
+      TableName="FND_SEC_GUIDELINES" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="22" />
+      </DesignTime>
+   </Attribute>
+   <Attribute
+      Name="LastUpdateLogin"
+      Precision="15"
+      Scale="0"
+      ColumnName="LAST_UPDATE_LOGIN"
+      Type="oracle.jbo.domain.Number"
+      ColumnType="NUMBER"
+      SQLType="NUMERIC"
+      TableName="FND_SEC_GUIDELINES" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="22" />
+      </DesignTime>
+   </Attribute>
+   <Attribute
+      Name="ZdEditionName"
+      IsNotNull="true"
+      Precision="30"
+      ColumnName="ZD_EDITION_NAME"
+      Type="java.lang.String"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR"
+      TableName="FND_SEC_GUIDELINES" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="30" />
+      </DesignTime>
+   </Attribute>
+   <Attribute
+      Name="ZdSync"
+      IsNotNull="true"
+      Precision="30"
+      ColumnName="ZD_SYNC"
+      Type="java.lang.String"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR"
+      TableName="FND_SEC_GUIDELINES" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="30" />
+      </DesignTime>
+   </Attribute>
+   <Attribute
+      Name="RowID"
+      IsUpdateable="false"
+      ColumnName="ROWID"
+      Type="oracle.jbo.domain.RowID"
+      ColumnType="ROWID"
+      SQLType="ROWID"
+      PrimaryKey="true" >
+   </Attribute>
+</Entity>

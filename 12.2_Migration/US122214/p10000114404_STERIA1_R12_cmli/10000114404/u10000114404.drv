@@ -1,0 +1,60 @@
+#Unified driver
+
+begin aru bug_10000114404 
+
+	characterset US7ASCII 
+	compatible release 12.0.0 
+	compatible requires_translation yes 
+	compatible feature checkfile 
+	extension recordpatch 10000114404 US 
+	extension patch_type software base 
+
+	begin bug xxst 10000114404 
+
+		begin actions
+
+		#Copy Actions
+		# Copy files
+
+		# File Driver
+
+		copy xxst admin/driver xxstfile.drv 1.1026
+		# Rsync Script Copy and Execute at End
+
+		forcecopy xxst bin/US custom_rsync.sh 0
+		# Shell Script Copy and Execute at End
+
+		forcecopy xxst bin genjar.sh 0
+		# Copy files
+
+		# Java file
+
+		copy xxst java XXSTHzPuiAcctSearchResultsCO.java 120.12
+		# Copy compiler script
+
+		# Java file
+
+		forcecopy xxst bin javac.sh 0
+		# 
+
+		# Java file
+
+		exec xxst bin javac.sh bin &phase=last+3 $OA_JAVA/xxst/oracle/apps/ar/hz/components/account/search/webui XXSTHzPuiAcctSearchResultsCO.java xxst/java
+		#Database Actions
+		# Last database phase: last
+
+		# Shell Script Copy and Execute at End
+
+		exec xxst bin genjar.sh bin &phase=last+98 &un_apps &pw_apps &jdbc_db_addr
+		# Last database phase: last
+
+		# Rsync Script Copy and Execute at End
+
+		exec xxst bin/US custom_rsync.sh bin &phase=last+99
+		#Generate Actions
+
+		end actions 
+
+	end bug xxst 10000114404 
+
+end aru bug_10000114404

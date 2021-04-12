@@ -1,0 +1,16 @@
+#$Header: TcActivitiesPG.xml 001.000.000 2021-03-18 RPATHANIA$
+<?xml version = '1.0' encoding = 'UTF-8'?>
+<customization xmlns="http://xmlns.oracle.com/jrad" version="9.0.6.0.0_55" xml:lang="en-US" customizes="/oracle/apps/hxc/selfservice/timecard/webui/TcActivitiesPG" file-version="$Header$" MDSActiveDoc="true">
+   <modifications>
+      <modify element="Hxctcastatus" rendered="true" sortState="no"/>
+      <modify element="Hxctcaperiodstarts" rendered="true" sortState="no"/>
+      <modify element="Hxctcaperiodends" initSortSeq="first" rendered="true" sortState="descending"/>
+      <modify element="Hxctcahoursworked" rendered="true" sortState="no"/>
+      <modify element="Hxctcasubmissiondate" rendered="true" sortState="no"/>
+      <modify element="Hxctcarecentlist" blockSize="100"/>
+      <modify element="HXCTIMECARDACTIVITIESPAGE" controllerClass="oracle.apps.hxc.selfservice.timecard.webui.TcActivitiesCO"/>
+      <modify element="sortableHeader2" initSortSeq="first" sortState="descending"/>
+      <modify element="review" rendered="true"/>
+      <modify element="Hxcnextbutton1" rendered="true"/>
+   </modifications>
+</customization>

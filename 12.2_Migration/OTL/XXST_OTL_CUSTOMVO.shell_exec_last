@@ -1,0 +1,6 @@
+#$Header: XXST_OTL_CUSTOMVO.shell_exec_last 001.000.000 2020-03-23 RPATHANIA$
+cp $XXST_TOP/html/US/Custom1VO.xml $JAVA_TOP/oracle/apps/hxc/selfservice/timecard/server/
+cp $XXST_TOP/html/US/Custom2VO.xml $JAVA_TOP/oracle/apps/hxc/selfservice/timecard/server/
+cp $XXST_TOP/html/US/Custom3VO.xml $JAVA_TOP/oracle/apps/hxc/selfservice/timecard/server/
+cp $XXST_TOP/html/US/Custom4VO.xml $JAVA_TOP/oracle/apps/hxc/selfservice/timecard/server/
+cp $XXST_TOP/html/US/ProjectLOVVO.xml $JAVA_TOP/oracle/apps/hxc/selfservice/timecard/server/

@@ -1,0 +1,3234 @@
+import java.math.BigDecimal;
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Enumeration;
+import java.util.Hashtable;
+import java.util.Vector;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import oracle.apps.fnd.common.AppsContext;
+import oracle.apps.fnd.common.AppsEnvironmentStore;
+import oracle.apps.fnd.common.AppsLog;
+import oracle.apps.fnd.common.ErrorStack;
+import oracle.apps.fnd.common.LangInfo;
+import oracle.apps.fnd.common.Message;
+import oracle.apps.fnd.common.ProfileStore;
+import oracle.apps.fnd.common.VersionInfo;
+import oracle.apps.fnd.common.WebAppsContext;
+import oracle.apps.fnd.framework.webui.OAPageContext;
+import oracle.apps.fnd.login.lang.LanguageContext;
+import oracle.apps.fnd.profiles.Profiles;
+import oracle.apps.fnd.proxy.ProxyUserUtil;
+import oracle.apps.fnd.security.HTMLProcessor;
+import oracle.apps.fnd.security.SessionManager;
+import oracle.apps.fnd.security.UserPwd;
+import oracle.apps.fnd.sso.AppsAgent;
+import oracle.apps.fnd.sso.AuthenticationException;
+import oracle.apps.fnd.sso.Authenticator;
+import oracle.apps.fnd.sso.SSOAppsUser;
+import oracle.apps.fnd.sso.SSOCommon;
+import oracle.apps.fnd.sso.SSOManager;
+import oracle.apps.fnd.sso.SSOUtil;
+import oracle.apps.fnd.sso.SessionMgr;
+import oracle.apps.fnd.sso.URLHelper;
+import oracle.apps.fnd.sso.Utils;
+import oracle.apps.fnd.util.JDBC;
+import oracle.apps.fnd.util.URLEncoder;
+import oracle.cabo.ui.data.DataObject;
+import oracle.jdbc.OracleCallableStatement;
+import oracle.jdbc.OracleConnection;
+import oracle.jdbc.OraclePreparedStatement;
+
+public class SessionMgr {
+  public static final String RCS_ID = "$Header: SessionMgr.java 120.58.12020000.13 2017/05/19 17:09:14 ctilley ship $";
+  
+  public static final boolean RCS_ID_RECORDED = VersionInfo.recordClassVersion("$Header: SessionMgr.java 120.58.12020000.13 2017/05/19 17:09:14 ctilley ship $", "oracle.apps.fnd.sso");
+  
+  private static final String className = "oracle.apps.fnd.sso.SessionMgr[$Revision: 115.112.2.10].";
+  
+  private static final int PV_USER_ID = 10;
+  
+  private static final int PV_SESSION_ID = 23;
+  
+  private static final int PV_USER_NAME = 99;
+  
+  private static final String INVALID_SESSION = "-1";
+  
+  private static final String DEFAULT_CHARSET = "ISO-8859-1";
+  
+  private static Vector installedLanguagesInfo = new Vector();
+  
+  private static Vector installedLanguagesCode = new Vector();
+  
+  private static Vector installedLanguagesDesc = new Vector();
+  
+  private static boolean initLang = false;
+  
+  private static String sessionCookieName = null;
+  
+  private static String loadedLang = null;
+  
+  private static Vector loadedLanguages = new Vector();
+  
+  private static Hashtable installedSpecificLangInfoTable = new Hashtable<Object, Object>();
+  
+  private static Hashtable installedSpecificLangDescTable = new Hashtable<Object, Object>();
+  
+  private static String protocol = null;
+  
+  public static String getAppsCookie(HttpServletRequest paramHttpServletRequest) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.getAppsCookie(HttpServletRequest)";
+    WebAppsContext webAppsContext = null;
+    boolean bool = false;
+    String str2 = null;
+    if (Utils.isAppsContextAvailable()) {
+      webAppsContext = Utils.getAppsContext();
+      bool = true;
+    } else {
+      webAppsContext = Utils.getAppsContext();
+    } 
+    if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "BEGIN", webAppsContext, 2); 
+    try {
+      Cookie[] arrayOfCookie = paramHttpServletRequest.getCookies();
+      String str = getSessionCookieName(webAppsContext);
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "Cookie Name: " + str, webAppsContext); 
+      for (byte b = 0; arrayOfCookie != null && b < arrayOfCookie.length; b++) {
+        if (arrayOfCookie[b].getName().equals(str)) {
+          str2 = arrayOfCookie[b].getValue();
+          break;
+        } 
+      } 
+    } finally {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "END return Value: " + str2, webAppsContext, 2); 
+      if (!bool)
+        Utils.releaseAppsContext(); 
+    } 
+    return str2;
+  }
+  
+  protected static String getServerDomain(HttpServletRequest paramHttpServletRequest, HttpServletResponse paramHttpServletResponse) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.getServerDomain(HttpServletRequest,  HttpServletResponse)";
+    String str2 = null;
+    WebAppsContext webAppsContext = null;
+    boolean bool = false;
+    if (Utils.isAppsContextAvailable()) {
+      webAppsContext = Utils.getAppsContext();
+      bool = true;
+    } else {
+      webAppsContext = Utils.getAppsContext();
+    } 
+    try {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "BEGIN", webAppsContext, 2); 
+      str2 = webAppsContext.getSessionCookieDomain();
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "domain: " + str2, webAppsContext); 
+      if (str2 != null)
+        return str2; 
+    } finally {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "END returnValue: " + str2, webAppsContext, 2); 
+      if (!bool)
+        Utils.releaseAppsContext(); 
+    } 
+    return str2;
+  }
+  
+  public static boolean changePassword(WebAppsContext paramWebAppsContext, String paramString, HttpServletRequest paramHttpServletRequest, HttpServletResponse paramHttpServletResponse) {
+    boolean bool = false;
+    Connection connection = null;
+    boolean bool1 = false;
+    String str = "oracle.apps.fnd.sso.SessionMgr.changePassword(WebAppsContext, String, HttpServletRequest, HttpServletResponse)";
+    boolean bool2 = Utils.isAppsContextAvailable();
+    try {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "BEGIN", paramWebAppsContext, 2); 
+      connection = Utils.getConnection(paramWebAppsContext);
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "username: " + paramString, paramWebAppsContext); 
+      Utils.setRequestCharacterEncoding(paramHttpServletRequest);
+      if (paramString != null && !paramString.equals("")) {
+        String str1 = paramHttpServletRequest.getParameter("password");
+        String str2 = paramHttpServletRequest.getParameter("newPassword");
+        String str3 = paramHttpServletRequest.getParameter("newPassword2");
+        if ((str1 == null || str1.equals("")) && (
+          (AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str, "Current password is NULL", paramWebAppsContext); 
+        if ((str2 == null || str2.equals("")) && (
+          (AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str, "New password is NULL", paramWebAppsContext); 
+        if ((str3 == null || str3.equals("")) && (
+          (AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str, "New password2 is NULL", paramWebAppsContext); 
+        int i = Utils.getUserId(paramString, paramWebAppsContext);
+        if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str, "uid: " + i, paramWebAppsContext); 
+        bool1 = paramWebAppsContext.getSessionManager().changePassword(paramString, str1, str2, str3, i);
+        if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str, "After calling changePassword: " + bool1, paramWebAppsContext); 
+        if (bool1) {
+          String str4 = paramHttpServletRequest.getParameter("langCode");
+          if (str4 == null || "".equals(str4))
+            str4 = paramWebAppsContext.getCurrLangCode(); 
+          if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+            Utils.writeToLog(str, "Attempting to create session for user: " + paramString + " in ::" + str4, paramWebAppsContext); 
+          createSession(paramString, paramWebAppsContext, paramHttpServletRequest, paramHttpServletResponse, false, null, str4);
+          if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+            Utils.writeToLog(str, "After calling createSession: ", paramWebAppsContext); 
+          bool = true;
+        } else {
+          bool = false;
+        } 
+      } 
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "END: return: " + bool, paramWebAppsContext, 2); 
+    } finally {
+      if (!bool2)
+        Utils.releaseAppsContext(); 
+    } 
+    return bool;
+  }
+  
+  static boolean validatePassword(String paramString1, String paramString2, String paramString3, WebAppsContext paramWebAppsContext) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.validatePassword(String, String, String, WebAppsContext)";
+    boolean bool = true;
+    String str2 = null;
+    int i = 5;
+    Message message = null;
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "BEGIN", paramWebAppsContext, 2); 
+    try {
+      str2 = paramWebAppsContext.getProfileStore().getProfile("SIGNON_PASSWORD_LENGTH");
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "passwordLengthStr: " + str2, paramWebAppsContext); 
+      if (str2 != null && !str2.equals("")) {
+        i = Integer.parseInt(str2);
+        if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str1, "passwordLength: " + i, paramWebAppsContext); 
+      } else if (str2 == null) {
+        i = 5;
+      } 
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "passwordLength: " + i, paramWebAppsContext); 
+      if (paramString2.length() < i) {
+        message = new Message("FND", "FND_SSO_PASSWORD_TOO_SHORT");
+        paramWebAppsContext.getErrorStack().addMessage(message);
+        if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str1, "New password lenth is too short", paramWebAppsContext); 
+        return false;
+      } 
+      if (!paramString2.equals(paramString3)) {
+        message = new Message("FND", "FND_USERADMIN_PASSWORD_DIFFER");
+        paramWebAppsContext.getErrorStack().addMessage(message);
+        if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str1, "New password and confirmation differ", paramWebAppsContext); 
+        return false;
+      } 
+    } catch (NumberFormatException numberFormatException) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str1, "Catching NumberFormatException" + Utils.getExceptionStackTrace(numberFormatException), paramWebAppsContext, 4); 
+    } finally {}
+    return bool;
+  }
+  
+  static void createSession(String paramString1, WebAppsContext paramWebAppsContext, HttpServletRequest paramHttpServletRequest, HttpServletResponse paramHttpServletResponse, boolean paramBoolean, String paramString2) {
+    createSession(paramString1, paramWebAppsContext, paramHttpServletRequest, paramHttpServletResponse, paramBoolean, paramString2, null);
+  }
+  
+  static void createSession(String paramString1, WebAppsContext paramWebAppsContext, HttpServletRequest paramHttpServletRequest, HttpServletResponse paramHttpServletResponse, boolean paramBoolean, String paramString2, String paramString3) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.createSession(String, WebAppsContext, HttpServletRequest, HttpServletResponse, boolean, String, String)";
+    String str2 = null;
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "BEGIN: Paramlist:  username: " + paramString1 + " wctx: " + paramWebAppsContext + " request: " + paramHttpServletRequest + " response: " + paramHttpServletResponse + " ssoMode: " + paramBoolean + " guid: " + paramString2 + " langCode: " + paramString3, paramWebAppsContext, 2); 
+    String str3 = paramHttpServletRequest.getParameter("langCode");
+    if (isInstalledLanguage(str3, paramWebAppsContext)) {
+      paramString3 = str3;
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "using lancode from request : " + paramString3, paramWebAppsContext); 
+    } else {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "Before checking langCode: " + paramString3, paramWebAppsContext); 
+      LanguageContext.getThreadLangContext().putUsername(paramString1);
+      paramString3 = checkLanguage(paramString1, paramWebAppsContext, paramString3);
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "After checking langCode: " + paramString3, paramWebAppsContext); 
+    } 
+    boolean bool1 = false;
+    boolean bool2 = false;
+    Object object1 = null;
+    Object object2 = null;
+    OracleCallableStatement oracleCallableStatement = null;
+    OracleConnection oracleConnection = (OracleConnection)Utils.getConnection(paramWebAppsContext);
+    boolean bool3 = false;
+    String str4 = getAppsCookie(paramHttpServletRequest);
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+      Utils.writeToLog(str1, "Cookie Value: " + str4, paramWebAppsContext); 
+    if (str4 != null && !str4.equals("-1")) {
+      String str = paramWebAppsContext.checkSession(str4);
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "CheckSession check: " + str, paramWebAppsContext); 
+      if (str != null && str.equals("VALID")) {
+        boolean bool = paramWebAppsContext.validateSession(str4);
+        if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str1, "ValidateSession check1: " + bool, paramWebAppsContext); 
+        if (bool == true)
+          try {
+            String str5 = paramWebAppsContext.getID(99);
+            int i = Integer.parseInt(paramWebAppsContext.getEnvStore().getEnv("ICX_SESSION_ID"));
+            if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+              Utils.writeToLog(str1, "After validation susername: " + str5 + " username: " + paramString1, paramWebAppsContext); 
+            String str6 = paramWebAppsContext.getEnvStore().getEnv("ICX_PV_SESSION_MODE");
+            if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+              Utils.writeToLog(str1, "origSessionModeCode: " + str6, paramWebAppsContext); 
+            BigDecimal bigDecimal1 = new BigDecimal(paramWebAppsContext.getUserIdFromName(str5));
+            BigDecimal bigDecimal2 = new BigDecimal(paramWebAppsContext.getUserIdFromName(paramString1));
+            String str7 = paramWebAppsContext.getSessionAttribute("FND_PROXY_USER", i);
+            if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+              Utils.writeToLog(str1, "FND_PROXY_USER in valid Session" + str7, paramWebAppsContext); 
+            BigDecimal bigDecimal3 = null;
+            if (str7 != null && !str7.equals("") && !str7.equals("FND_PROXY_USER"))
+              bigDecimal3 = new BigDecimal(str7); 
+            String str8 = Utils.getGuestUserName();
+            boolean bool4 = (str5 != null && str5.equalsIgnoreCase(paramString1) && (str7 == null || str7.equals("") || str7.equals("FND_PROXY_USER"))) ? true : false;
+            boolean bool5 = false;
+            boolean bool6 = false;
+            if (!bool4) {
+              if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                Utils.writeToLog(str1, "Not Same user coming in", paramWebAppsContext); 
+              bool6 = (str5 != null && !str5.equals("")) ? true : false;
+              boolean bool7 = (bool6 && str7 != null && !str7.equals("") && !str7.equals("FND_PROXY_USER")) ? true : false;
+              if (bool7) {
+                boolean bool8 = (bigDecimal3.equals(bigDecimal2) && ProxyUserUtil.isProxyAllowed(bigDecimal1, bigDecimal2)) ? true : false;
+                if (!bool8) {
+                  String str9 = Utils.getUserGuid(bigDecimal3, true);
+                  String str10 = Utils.getUserGuid(bigDecimal2, true);
+                  if (str9 != null && !str9.equals("") && str10 != null && !str10.equals("") && str9.equals(str10) && ProxyUserUtil.isProxyAllowed(bigDecimal1, bigDecimal3)) {
+                    bool5 = true;
+                  } else {
+                    bool5 = false;
+                  } 
+                } else {
+                  bool5 = true;
+                } 
+              } else {
+                bool5 = false;
+              } 
+            } 
+            if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1)) {
+              Utils.writeToLog(str1, "Valid Proxy Session:: " + bool5, paramWebAppsContext);
+              Utils.writeToLog(str1, "sameUserLoggingIn:: " + bool4, paramWebAppsContext);
+            } 
+            if (bool4 || bool5) {
+              if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                Utils.writeToLog(str1, "Same session user or valid proxy", paramWebAppsContext); 
+              bool1 = true;
+              bool2 = true;
+              validateSession(paramWebAppsContext);
+              setLang(paramString1, paramWebAppsContext, paramHttpServletRequest, paramString3);
+              bool3 = true;
+              if (str6 != null && str6.equals("115X")) {
+                if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                  Utils.writeToLog(str1, "115X session begin promoted hence setting home page icx session profile", paramWebAppsContext); 
+                str2 = SSOUtil.getPortalUrl();
+                saveSessionAttribute((Connection)oracleConnection, paramWebAppsContext, "FND_HOME_PAGE_URL", str2);
+              } 
+              updateSessionModeCode(paramWebAppsContext, i, paramBoolean);
+              saveSessionAttribute((Connection)oracleConnection, paramWebAppsContext, "SSO_HINT_SESSION", "SUCCESS");
+              if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                Utils.writeToLog(str1, "Login audit should be restored ", paramWebAppsContext); 
+              reauthFndSignOn(paramWebAppsContext, i);
+              if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                Utils.writeToLog(str1, "Before storePostLogoutUrl, user:" + paramWebAppsContext.getUserName() + ", resp:" + paramWebAppsContext.getRespId() + ", appId:" + paramWebAppsContext.getRespApplId(), paramWebAppsContext); 
+              paramWebAppsContext.getProfileStore().clear();
+              SSOManager.storePostLogoutUrl(paramWebAppsContext, str4, paramBoolean, paramString3, str2);
+              return;
+            } 
+            if (str8 != null && str5 != null && !str5.equalsIgnoreCase(str8)) {
+              logoutUser(paramHttpServletRequest, paramHttpServletResponse);
+              bool1 = false;
+            } 
+            if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+              Utils.writeToLog(str1, "gusername: " + str8 + " susername: " + str5, paramWebAppsContext); 
+            if (str8 != null && str5 != null && str5.equalsIgnoreCase(str8)) {
+              paramWebAppsContext.getEnvStore().setEnv("ICX_PV_SESSION_MODE", getModeCodeForSetting(paramWebAppsContext, paramBoolean));
+              boolean bool7 = paramWebAppsContext.convertGuestSession(paramString1, paramString3);
+              bool3 = true;
+              if (bool7) {
+                if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                  Utils.writeToLog(str1, "Successfully merged the Existing GUEST session to => " + paramString1, paramWebAppsContext); 
+                str4 = paramWebAppsContext.getSessionCookieValue();
+                String str9 = getSessionCookieName(paramWebAppsContext);
+                Cookie cookie = new Cookie(str9, str4);
+                boolean bool8 = false;
+                if (bool8) {
+                  cookie.setPath("/; HTTPOnly");
+                } else {
+                  cookie.setPath("/");
+                } 
+                String str10 = null;
+                try {
+                  str10 = getServerDomain(paramHttpServletRequest, paramHttpServletResponse);
+                  if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                    Utils.writeToLog(str1, "sso ssoCookieDomain: " + str10, paramWebAppsContext); 
+                } catch (Exception exception) {}
+                if (str10 != null && !"NONE".equals(str10))
+                  cookie.setDomain(str10); 
+                if (isSSLMode(paramHttpServletRequest))
+                  cookie.setSecure(true); 
+                paramHttpServletResponse.addCookie(cookie);
+                if (paramBoolean)
+                  saveSessionUserInfo(paramWebAppsContext, paramString1, paramString2); 
+                bool1 = true;
+                paramWebAppsContext.setSessionAttribute("SSO_HINT_SESSION", "SUCCESS");
+              } else {
+                Message message = paramWebAppsContext.getErrorStack().nextMessageObject();
+                String str9 = message.getName();
+                String str10 = message.getMessageText(paramWebAppsContext.getResourceStore());
+                if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                  Utils.writeToLog(str1, "Unable to merge the Existing GUEST session to => " + paramString1, paramWebAppsContext); 
+                if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+                  Utils.writeToLog(str1, "Message from stack msgName :: " + str9 + " msgText :: " + str10, paramWebAppsContext, 4); 
+                throw new RuntimeException(str10);
+              } 
+            } 
+          } catch (Exception exception) {
+            if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+              Utils.writeToLog(str1, "Exception Occurred. : " + Utils.getExceptionStackTrace(exception), paramWebAppsContext, 4); 
+            logoutUser(paramHttpServletRequest, paramHttpServletResponse);
+            bool1 = false;
+          } finally {
+            if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+              Utils.writeToLog(str1, "Done Executing Valid Path : " + str + " Session Cookie Val : " + str4, paramWebAppsContext); 
+          }  
+      } else if (str != null && str.equals("EXPIRED")) {
+        String[] arrayOfString = null;
+        BigDecimal bigDecimal = null;
+        String str5 = null;
+        try {
+          if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+            Utils.writeToLog(str1, "Executing EXPIRED PATH.. : " + str, paramWebAppsContext); 
+          arrayOfString = new String[1];
+          bigDecimal = getICXSessionInfo(str4, arrayOfString);
+          str5 = arrayOfString[0];
+          String str6 = null;
+          Hashtable hashtable = getICXSessionInfo(str4);
+          if (hashtable != null)
+            str6 = (String)hashtable.get("MODE_CODE"); 
+          if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+            Utils.writeToLog(str1, "Executing EXPIRED PATH. After calling getICXSessionInfo osid: " + bigDecimal + " username in session: " + str5, paramWebAppsContext); 
+          BigDecimal bigDecimal1 = new BigDecimal(paramWebAppsContext.getUserIdFromName(str5));
+          BigDecimal bigDecimal2 = new BigDecimal(paramWebAppsContext.getUserIdFromName(paramString1));
+          String str7 = paramWebAppsContext.getSessionAttribute("FND_PROXY_USER", bigDecimal.intValue());
+          if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+            Utils.writeToLog(str1, "FND_PROXY_USER in Expired Session:: " + str7, paramWebAppsContext); 
+          BigDecimal bigDecimal3 = null;
+          if (str7 != null && !str7.equals("") && !str7.equals("FND_PROXY_USER"))
+            bigDecimal3 = new BigDecimal(str7); 
+          boolean bool4 = (str5 != null && str5.equalsIgnoreCase(paramString1) && (str7 == null || str7.equals("") || str7.equals("FND_PROXY_USER"))) ? true : false;
+          boolean bool5 = false;
+          boolean bool6 = false;
+          if (!bool4) {
+            bool6 = (str5 != null && !str5.equals("")) ? true : false;
+            boolean bool = (bool6 && str7 != null && !str7.equals("") && !str7.equals("FND_PROXY_USER")) ? true : false;
+            if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+              Utils.writeToLog(str1, "isCurrentSessionProxy :: " + bool, paramWebAppsContext); 
+            if (bool) {
+              boolean bool7 = (bigDecimal3.equals(bigDecimal2) && ProxyUserUtil.isProxyAllowed(bigDecimal1, bigDecimal2)) ? true : false;
+              if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                Utils.writeToLog(str1, "sameProxyUser :: " + bool7, paramWebAppsContext); 
+              if (!bool7) {
+                String str8 = Utils.getUserGuid(bigDecimal3, true);
+                if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                  Utils.writeToLog(str1, "proxyUserGuid :: " + str8, paramWebAppsContext); 
+                String str9 = Utils.getUserGuid(bigDecimal2, true);
+                if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                  Utils.writeToLog(str1, "userGuid :: " + str9, paramWebAppsContext); 
+                if (str8 != null && !str8.equals("") && str9 != null && !str9.equals("") && str8.equals(str9) && ProxyUserUtil.isProxyAllowed(bigDecimal1, bigDecimal3)) {
+                  bool5 = true;
+                } else {
+                  bool5 = false;
+                } 
+              } else {
+                bool5 = true;
+              } 
+            } else {
+              bool5 = false;
+            } 
+          } 
+          if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1)) {
+            Utils.writeToLog(str1, "Valid Proxy Session:: " + bool5, paramWebAppsContext);
+            Utils.writeToLog(str1, "sameUserLoggingIn:: " + bool4, paramWebAppsContext);
+          } 
+          if (bool4 || bool5) {
+            String str8 = getModeCodeForSetting(paramWebAppsContext, paramBoolean);
+            boolean bool = false;
+            if (paramWebAppsContext.getHijackSession())
+              bool = true; 
+            Utils.writeToLog(str1, "Update session", paramWebAppsContext);
+            String str9 = "declare PRAGMA AUTONOMOUS_TRANSACTION;l_XSID varchar2(32);begin l_XSID := fnd_session_management.NewXSID;UPDATE icx_sessions SET first_connect = SYSDATE, last_connect = SYSDATE, counter = 1, xsid = l_XSID, MODE_CODE = :1 WHERE session_id = :2; :3 := l_XSID;commit;exception when others then fnd_log.string(FND_LOG.LEVEL_UNEXPECTED,'SessionMgr:update1','Exception: '||sqlerrm);rollback;end;";
+            String str10 = "declare PRAGMA AUTONOMOUS_TRANSACTION;begin UPDATE icx_sessions SET first_connect = SYSDATE, last_connect = SYSDATE, counter = 1, MODE_CODE = :1 WHERE session_id = :2;commit;exception when others then rollback;end;";
+            if (!str6.equals("115X") && bool) {
+              if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                Utils.writeToLog(str1, "SQL update: " + str9, paramWebAppsContext); 
+              oracleCallableStatement = (OracleCallableStatement)oracleConnection.prepareCall(str9);
+              oracleCallableStatement.setString(1, str8);
+              oracleCallableStatement.setBigDecimal(2, bigDecimal);
+              oracleCallableStatement.registerOutParameter(3, 12, 0, 32);
+              oracleCallableStatement.execute();
+              String str11 = oracleCallableStatement.getString(3);
+              if (str11 != null) {
+                str4 = str11;
+                paramWebAppsContext.getEnvStore().setEnv("ICX_SESSION_COOKIE_VALUE", str4);
+              } 
+              JDBC.close((Statement)oracleCallableStatement);
+              if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                Utils.writeToLog(str1, "Executed the update", paramWebAppsContext); 
+              String str12 = getSessionCookieName(paramWebAppsContext);
+              Cookie cookie = new Cookie(str12, str4);
+              boolean bool8 = false;
+              if (bool8) {
+                cookie.setPath("/; HTTPOnly");
+              } else {
+                cookie.setPath("/");
+              } 
+              String str13 = null;
+              try {
+                str13 = getServerDomain(paramHttpServletRequest, paramHttpServletResponse);
+                if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                  Utils.writeToLog(str1, "sso ssoCookieDomain: " + str13, paramWebAppsContext); 
+              } catch (Exception exception) {}
+              if (str13 != null && !"NONE".equals(str13))
+                cookie.setDomain(str13); 
+              if (isSSLMode(paramHttpServletRequest))
+                cookie.setSecure(true); 
+              paramHttpServletResponse.addCookie(cookie);
+            } else {
+              if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                Utils.writeToLog(str1, "SQL update: " + str10, paramWebAppsContext); 
+              oracleCallableStatement = (OracleCallableStatement)oracleConnection.prepareCall(str10);
+              oracleCallableStatement.setString(1, str8);
+              oracleCallableStatement.setBigDecimal(2, bigDecimal);
+              oracleCallableStatement.execute();
+              if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                Utils.writeToLog(str1, "Executed the update", paramWebAppsContext); 
+            } 
+            boolean bool7 = paramWebAppsContext.validateSession(str4);
+            if (paramBoolean) {
+              if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                Utils.writeToLog(str1, "SSO Mode hence setting username and guid as session attributes", paramWebAppsContext); 
+              paramWebAppsContext.getEnvStore().setEnv("ICX_SESSION_ID", bigDecimal.toString());
+              saveSessionUserInfo(paramWebAppsContext, paramString1, paramString2);
+            } 
+            if (str6 != null && str6.equals("115X")) {
+              if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+                Utils.writeToLog(str1, "115X session begin promoted hence setting home page icx session profile", paramWebAppsContext); 
+              str2 = SSOUtil.getPortalUrl();
+              saveSessionAttribute((Connection)oracleConnection, paramWebAppsContext, "FND_HOME_PAGE_URL", str2);
+            } 
+            if (bool7 == true) {
+              bool1 = true;
+              bool2 = true;
+            } 
+            if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+              Utils.writeToLog(str1, "Login audit should be restored ", paramWebAppsContext); 
+            reauthFndSignOn(paramWebAppsContext, bigDecimal.intValue());
+            bool1 = true;
+          } else {
+            if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+              Utils.writeToLog(str1, "User entered a different user name on Login at expiry username entered => " + paramString1 + " username expected => " + str5, paramWebAppsContext); 
+            logoutUser(paramHttpServletRequest, paramHttpServletResponse);
+            bool1 = false;
+          } 
+        } catch (Exception exception) {
+          if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+            Utils.writeToLog(str1, "In the Expired Path..Exception Occurred : " + Utils.getExceptionStackTrace(exception), paramWebAppsContext, 4); 
+          logoutUser(paramHttpServletRequest, paramHttpServletResponse);
+          bool1 = false;
+        } finally {
+          if (oracleCallableStatement != null)
+            try {
+              oracleCallableStatement.close();
+            } catch (Exception exception) {} 
+        } 
+      } 
+    } 
+    if (!bool1)
+      try {
+        if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str1, "Inside if(!done) Creating a new Session!!: " + bool1, paramWebAppsContext); 
+        paramWebAppsContext.getErrorStack().clear();
+        paramWebAppsContext.getEnvStore().setEnv("ICX_PV_SESSION_MODE", getModeCodeForSetting(paramWebAppsContext, paramBoolean));
+        if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str1, "Checking the mode_code mode_code(env) => " + paramWebAppsContext.getEnvStore().getEnv("ICX_PV_SESSION_MODE"), paramWebAppsContext); 
+        if (paramString3 == null || paramString3.equals(""))
+          paramString3 = paramHttpServletRequest.getParameter("langCode"); 
+        Cookie cookie = createSession(paramString1, paramHttpServletRequest, paramHttpServletResponse, paramString3);
+        bool2 = true;
+        bool3 = true;
+        if (paramBoolean)
+          saveSessionUserInfo(paramWebAppsContext, paramString1, paramString2); 
+        String str = paramWebAppsContext.getProfileStore().getProfile("APPS_SSO");
+        if (paramBoolean == true)
+          if (str != null && str.equals("SSO_SDK")) {
+            if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+              Utils.writeToLog(str1, "Deployment is set to SSO_SDK hence setting home page icx session profile", paramWebAppsContext); 
+            str2 = SSOUtil.getPortalUrl();
+            paramWebAppsContext.setSessionAttribute("FND_HOME_PAGE_URL", str2);
+          }  
+        paramHttpServletResponse.addCookie(cookie);
+      } catch (Exception exception) {
+        if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+          Utils.writeToLog(str1, "Exception Occurred: " + Utils.getExceptionStackTrace(exception), paramWebAppsContext, 4); 
+      }  
+    if (!bool2)
+      validateSession(paramWebAppsContext); 
+    if (!bool3)
+      setLang(paramString1, paramWebAppsContext, paramHttpServletRequest, paramString3); 
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+      Utils.writeToLog(str1, "Before storePostLogoutUrl, user:" + paramWebAppsContext.getUserName() + ", resp:" + paramWebAppsContext.getRespId() + ", appId:" + paramWebAppsContext.getRespApplId(), paramWebAppsContext); 
+    paramWebAppsContext.getProfileStore().clear();
+    SSOManager.storePostLogoutUrl(paramWebAppsContext, str4, paramBoolean, paramString3, str2);
+  }
+  
+  public static void validateSession(WebAppsContext paramWebAppsContext) {
+    String str = "oracle.apps.fnd.sso.SessionMgr.validateSession(WebAppsContext)";
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str, "BEGIN", paramWebAppsContext, 2); 
+    boolean bool = paramWebAppsContext.validateSession(paramWebAppsContext.getEnvStore().getEnv("ICX_SESSION_COOKIE_VALUE"));
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+      Utils.writeToLog(str, "Session Validation : " + bool + " Session id: " + paramWebAppsContext.getEnvStore().getEnv("ICX_SESSION_COOKIE_VALUE"), paramWebAppsContext); 
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str, "END", paramWebAppsContext, 2); 
+  }
+  
+  static String getUserProfile(String paramString1, String paramString2, WebAppsContext paramWebAppsContext) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.getUserProfile";
+    AppsLog appsLog = (AppsLog)paramWebAppsContext.getLog();
+    boolean bool1 = appsLog.isEnabled(str1, 2);
+    boolean bool2 = appsLog.isEnabled(str1, 1);
+    if (bool1)
+      appsLog.write(str1, "BEGIN", 2); 
+    ProfileStore profileStore = paramWebAppsContext.getProfileStore();
+    String str2 = profileStore.getSpecificProfile(paramString2, paramString1, null, null);
+    if (str2 == null || "".equals(str2)) {
+      str2 = profileStore.getProfile(paramString2);
+      if (bool2)
+        appsLog.write(str1, paramString2 + "=" + str2 + "[SITE]", 1); 
+    } else if (bool2) {
+      appsLog.write(str1, paramString2 + "=" + str2 + "[" + paramString1 + "]", 1);
+    } 
+    if (bool1)
+      appsLog.write(str1, "END", 2); 
+    return str2;
+  }
+  
+  static String checkLanguage(String paramString1, WebAppsContext paramWebAppsContext, String paramString2) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.checkLanguage(username, WebAppsContext, String)";
+    boolean bool1 = ((AppsLog)paramWebAppsContext.getLog()).isEnabled(2);
+    boolean bool2 = ((AppsLog)paramWebAppsContext.getLog()).isEnabled(1);
+    if (bool1)
+      Utils.writeToLog(str1, "BEGIN", paramWebAppsContext, 2); 
+    String str2 = paramString2;
+    String str3 = Integer.toString(Utils.getUserId(paramString1.toUpperCase(), paramWebAppsContext));
+    if (bool2)
+      Utils.writeToLog(str1, "username=" + paramString1 + " userid=" + str3, paramWebAppsContext, 1); 
+    String str4 = getUserProfile(str3, "FND_OVERRIDE_SSO_LANG", paramWebAppsContext);
+    if (!"ENABLED".equals(str4)) {
+      if (bool1)
+        Utils.writeToLog(str1, "END " + str2 + " FND_OVERRIDE_SSO_LANG is disabled or null", paramWebAppsContext, 2); 
+    } else {
+      if (bool2)
+        Utils.writeToLog(str1, "External language override: " + str4, paramWebAppsContext); 
+      str2 = getUserProfile(str3, "ICX_LANGUAGE", paramWebAppsContext);
+      if (str2 == null || "".equals(str2)) {
+        str2 = paramString2;
+        if (bool2)
+          Utils.writeToLog(str1, "NO ICX_LANGUAGE, fallback to  => " + paramString2, paramWebAppsContext); 
+      } else {
+        if (bool2)
+          Utils.writeToLog(str1, "Language Value Before :" + str2, paramWebAppsContext); 
+        str2 = paramWebAppsContext.getLangCode(str2.toUpperCase());
+        if (bool2)
+          Utils.writeToLog(str1, "Language Value After :" + str2, paramWebAppsContext); 
+      } 
+      if (bool2)
+        Utils.writeToLog(str1, "Overriding External language with ICX_LANGUAGE => " + str2, paramWebAppsContext); 
+      LanguageContext languageContext = LanguageContext.getThreadLangContext();
+      String str = str2;
+      languageContext.setLegacyValue(str2);
+      str2 = languageContext.calculate();
+      if (bool2)
+        Utils.writeToLog(str1, " legacy= " + str + " caluted from rule=" + str2, paramWebAppsContext); 
+      if (bool1)
+        Utils.writeToLog(str1, "END returnValue: " + str2, paramWebAppsContext, 2); 
+    } 
+    return str2;
+  }
+  
+  public static void setLang(String paramString1, WebAppsContext paramWebAppsContext, HttpServletRequest paramHttpServletRequest, String paramString2) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.setLang(String, WebAppsContext, HttpServletRequest, String)";
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2)) {
+      Utils.writeToLog(str1, "BEGIN", paramWebAppsContext, 2);
+      Utils.writeToLog(str1, "Paramlist  username: " + paramString1 + " wctx: " + paramWebAppsContext + " request: " + paramHttpServletRequest + " langCode: " + paramString2, paramWebAppsContext, 2);
+    } 
+    String str2 = null;
+    if (paramHttpServletRequest != null) {
+      str2 = paramHttpServletRequest.getParameter("langCode");
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "request langCode:" + str2, paramWebAppsContext, 1); 
+      if (!isInstalledLanguage(str2, paramWebAppsContext)) {
+        if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str1, str2 + " not installed", paramWebAppsContext, 1); 
+        str2 = null;
+      } 
+    } 
+    if (paramString2 == null && str2 != null)
+      paramString2 = str2; 
+    if (paramWebAppsContext == null || paramString2 == null) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "END Unable to determine langCode", paramWebAppsContext, 2); 
+      return;
+    } 
+    if (str2 == null) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "Before checking langCode: " + paramString2, paramWebAppsContext); 
+      LanguageContext languageContext = LanguageContext.getThreadLangContext();
+      languageContext.putUsername(paramString1);
+      languageContext.putAPIParameter(paramString2);
+      paramString2 = checkLanguage(paramString1, paramWebAppsContext, paramString2);
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "After checking langCode: " + paramString2, paramWebAppsContext); 
+    } 
+    if (!isInstalledLanguage(paramString2.toUpperCase())) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "END lang requested to be set is not installed", paramWebAppsContext, 2); 
+      return;
+    } 
+    OraclePreparedStatement oraclePreparedStatement = null;
+    ResultSet resultSet = null;
+    try {
+      Connection connection = Utils.getConnection(paramWebAppsContext);
+      LangInfo langInfo = paramWebAppsContext.getLangInfo(paramString2.toUpperCase(), null, connection);
+      if (langInfo == null) {
+        if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+          Utils.writeToLog(str1, "END wctx.getLangInfo returned Null ", paramWebAppsContext, 2); 
+        return;
+      } 
+      String str3 = langInfo.getNLSLanguage();
+      String str4 = " SELECT DISTINCT LANGUAGE_CODE, NLS_TERRITORY, NLS_DATE_LANGUAGE  FROM (SELECT LANGUAGE_CODE, NLS_TERRITORY,  UTF8_DATE_LANGUAGE NLS_DATE_LANGUAGE FROM FND_LANGUAGES       WHERE NLS_CHARSET_NAME(NLS_CHARSET_ID('CHAR_CS')) in ('UTF8', 'AL32UTF8')            AND INSTALLED_FLAG <>'D'       UNION       SELECT LANGUAGE_CODE, NLS_TERRITORY, LOCAL_DATE_LANGUAGE NLS_DATE_LANGUAGE       FROM FND_LANGUAGES       WHERE NLS_CHARSET_NAME(NLS_CHARSET_ID('CHAR_CS')) not in ('UTF8', 'AL32UTF8') AND INSTALLED_FLAG <>'D')  WHERE upper(LANGUAGE_CODE) = upper(:1) ";
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "Executing query: " + str4, paramWebAppsContext); 
+      oraclePreparedStatement = (OraclePreparedStatement)connection.prepareStatement(str4);
+      oraclePreparedStatement.setString(1, paramString2);
+      resultSet = oraclePreparedStatement.executeQuery();
+      String str5 = null;
+      String str6 = null;
+      while (resultSet.next()) {
+        str5 = resultSet.getString(2);
+        str6 = resultSet.getString(3);
+      } 
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "From query nlsTerritory: " + str5 + " nlsLangDate: " + str6, paramWebAppsContext); 
+      str5 = paramWebAppsContext.getProfileStore().getProfile("ICX_TERRITORY");
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "From profile nlsTerritory: " + str5, paramWebAppsContext); 
+      AppsEnvironmentStore appsEnvironmentStore = (AppsEnvironmentStore)paramWebAppsContext.getEnvStore();
+      String str7 = appsEnvironmentStore.getEnv("NLS_DATE_FORMAT");
+      String str8 = appsEnvironmentStore.getEnv("NLS_NUMERIC_CHARACTERS");
+      String str9 = appsEnvironmentStore.getEnv("NLS_SORT");
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "Before calling wctx.setNLSContext:  langCode: " + paramString2 + " pNlsLanguage: " + str3 + " NLS_DATE_FORMAT: " + str7 + " nlsLangDate: " + str6 + " NLS_NUMERIC_CHARACTERS: " + str8 + " NLS_SORT: " + str9 + " nlsTerritory: " + str5, paramWebAppsContext); 
+      boolean bool = paramWebAppsContext.setNLSContext(paramString2, str3, str7, str6, str8, str9, str5);
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "After calling wctx.setNLSContext check: " + bool, paramWebAppsContext); 
+    } catch (Exception exception) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str1, "Exception: " + Utils.getExceptionStackTrace(exception), paramWebAppsContext, 4); 
+      throw new RuntimeException(getMessage(paramWebAppsContext, "FND-9914"));
+    } finally {
+      try {
+        if (oraclePreparedStatement != null)
+          oraclePreparedStatement.close(); 
+      } catch (Exception exception) {
+        if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+          Utils.writeToLog(str1, "Exception close block: " + Utils.getExceptionStackTrace(exception), paramWebAppsContext, 4); 
+      } 
+      try {
+        if (resultSet != null)
+          resultSet.close(); 
+      } catch (Exception exception) {
+        if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+          Utils.writeToLog(str1, "Exception close block: " + Utils.getExceptionStackTrace(exception), paramWebAppsContext, 4); 
+      } 
+    } 
+  }
+  
+  public static void saveSessionUserInfo(WebAppsContext paramWebAppsContext, String paramString1, String paramString2) {
+    String str = "oracle.apps.fnd.sso.SessionMgr.saveSessionUserInfo(WebAppsContext, String, String)";
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str, "BEGIN", paramWebAppsContext, 2); 
+    paramWebAppsContext.getErrorStack().clear();
+    paramWebAppsContext.setSessionAttribute("authUser", paramString1);
+    paramWebAppsContext.setSessionAttribute("authUserGuid", paramString2);
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str, "END", paramWebAppsContext, 2); 
+  }
+  
+  public static String getSessionAttribute(Connection paramConnection, WebAppsContext paramWebAppsContext, String paramString) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.getSessionAttribute(Connection, WebAppsContext, String)";
+    PreparedStatement preparedStatement = null;
+    ResultSet resultSet = null;
+    String str2 = null;
+    try {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2)) {
+        Utils.writeToLog(str1, "BEGIN", paramWebAppsContext, 2);
+        Utils.writeToLog(str1, "ParamList:  conn: " + paramConnection + " wctx: " + paramWebAppsContext + " name: " + paramString, paramWebAppsContext, 2);
+      } 
+      String str3 = "select value from icx_session_attributes where session_id=:1 and name=:2";
+      String str4 = paramWebAppsContext.getEnvStore().getEnv("ICX_SESSION_ID");
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "Try to get icxsession attribute name=" + paramString + " sessionID=" + str4, paramWebAppsContext); 
+      int i = Integer.parseInt(str4);
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog("oracle.apps.fnd.sso.SessionMgr.getSessionAttribute", "After parsing the sessionID string sessionID=" + i, paramWebAppsContext, 1); 
+      preparedStatement = paramConnection.prepareStatement(str3);
+      preparedStatement.setInt(1, i);
+      preparedStatement.setString(2, paramString);
+      resultSet = preparedStatement.executeQuery();
+      if (resultSet.next())
+        str2 = resultSet.getString(1); 
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog("oracle.apps.fnd.sso.SessionMgr.getSessionAttribute", "Returning sessionAttr=" + str2, paramWebAppsContext, 1); 
+      return str2;
+    } catch (SQLException sQLException) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog("oracle.apps.fnd.sso.SessionMgr.getSessionAttribute", "Catching the SQL exception " + Utils.getExceptionStackTrace(sQLException), paramWebAppsContext, 4); 
+      throw new RuntimeException(getMessage(paramWebAppsContext, "FND-9907"));
+    } catch (Exception exception) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str1, "Catching the Generic exception " + Utils.getExceptionStackTrace(exception), paramWebAppsContext, 4); 
+      throw new RuntimeException(getMessage(paramWebAppsContext, "FND-9907"));
+    } finally {
+      if (preparedStatement != null)
+        try {
+          preparedStatement.close();
+        } catch (Exception exception) {} 
+      if (resultSet != null)
+        try {
+          resultSet.close();
+        } catch (Exception exception) {} 
+    } 
+  }
+  
+  static void saveSessionAttribute(Connection paramConnection, WebAppsContext paramWebAppsContext, String paramString1, String paramString2) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.saveSessionAttribute(Connection, WebAppsContext, String, String)";
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2)) {
+      Utils.writeToLog(str1, "BEGIN", paramWebAppsContext, 2);
+      Utils.writeToLog(str1, "ParamList  conn: " + paramConnection + " wctx: " + paramWebAppsContext + " name: " + paramString1 + " value: " + paramString2, paramWebAppsContext, 2);
+    } 
+    String str2 = "declare PRAGMA AUTONOMOUS_TRANSACTION;begin delete ICX_SESSION_ATTRIBUTES where SESSION_ID = :1 and    NAME = :2; insert into ICX_SESSION_ATTRIBUTES (SESSION_ID,NAME,VALUE)values(:3,:4,:5);commit;exception when others then rollback;end;";
+    OracleCallableStatement oracleCallableStatement = null;
+    try {
+      int i = Integer.parseInt(paramWebAppsContext.getEnvStore().getEnv("ICX_SESSION_ID"));
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "sesid: " + i, paramWebAppsContext); 
+      oracleCallableStatement = (OracleCallableStatement)paramConnection.prepareCall(str2);
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "Executing update " + str2, paramWebAppsContext); 
+      oracleCallableStatement.setInt(1, i);
+      oracleCallableStatement.setString(2, paramString1);
+      oracleCallableStatement.setInt(3, i);
+      oracleCallableStatement.setString(4, paramString1);
+      oracleCallableStatement.setString(5, paramString2);
+      oracleCallableStatement.execute();
+    } catch (Exception exception) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str1, "Exception Occurred " + Utils.getExceptionStackTrace(exception), paramWebAppsContext, 4); 
+      throw new RuntimeException(getMessage(paramWebAppsContext, "FND-9906"));
+    } finally {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "END", paramWebAppsContext, 2); 
+      try {
+        if (oracleCallableStatement != null)
+          oracleCallableStatement.close(); 
+      } catch (Exception exception) {}
+    } 
+  }
+  
+  public static BigDecimal fndSignOnNewICXSession(BigDecimal paramBigDecimal) {
+    String str = "oracle.apps.fnd.sso.SessionMgr.fndSignOnNewICXSession(BigDecimal)";
+    BigDecimal bigDecimal = null;
+    WebAppsContext webAppsContext = null;
+    boolean bool = false;
+    if (Utils.isAppsContextAvailable()) {
+      webAppsContext = Utils.getAppsContext();
+      bool = true;
+    } else {
+      webAppsContext = Utils.getAppsContext();
+    } 
+    try {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2)) {
+        Utils.writeToLog(str, "BEGIN", webAppsContext, 2);
+        Utils.writeToLog(str, "ParamList userId: " + paramBigDecimal, webAppsContext, 2);
+      } 
+      if (paramBigDecimal != null) {
+        bigDecimal = fndSignOnNewICXSession(paramBigDecimal, webAppsContext);
+      } else if (((AppsLog)webAppsContext.getLog()).isEnabled(1)) {
+        Utils.writeToLog(str, "Input user id is null returning null", webAppsContext);
+      } 
+    } finally {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "END :: " + bigDecimal, webAppsContext, 2); 
+      if (!bool)
+        Utils.releaseAppsContext(); 
+    } 
+    return bigDecimal;
+  }
+  
+  public static BigDecimal fndSignOnNewICXSession(BigDecimal paramBigDecimal, WebAppsContext paramWebAppsContext) {
+    String str = "oracle.apps.fnd.sso.SessionMgr.fndSignOnNewICXSession(BigDecimal, WebAppsContext)";
+    BigDecimal bigDecimal = null;
+    OracleCallableStatement oracleCallableStatement = null;
+    OracleConnection oracleConnection = null;
+    if (paramWebAppsContext == null)
+      throw new RuntimeException("Web Apps Context is null"); 
+    try {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2)) {
+        Utils.writeToLog(str, "BEGIN", paramWebAppsContext, 2);
+        Utils.writeToLog(str, "ParamList userId: " + paramBigDecimal, paramWebAppsContext, 2);
+      } 
+      if (paramBigDecimal != null) {
+        String str1 = " declare PRAGMA AUTONOMOUS_TRANSACTION;  l_uid number := :1;  l_login_id number; begin  fnd_signon.new_icx_session(UID => l_uid, login_id => l_login_id);  :2 :=  l_login_id;  commit; exception   when others then    rollback; end;";
+        oracleConnection = (OracleConnection)Utils.getConnection(paramWebAppsContext);
+        oracleCallableStatement = (OracleCallableStatement)oracleConnection.prepareCall(str1);
+        oracleCallableStatement.registerOutParameter(2, 2);
+        oracleCallableStatement.setBigDecimal(1, paramBigDecimal);
+        if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str, "Executing pl/sql: " + str1, paramWebAppsContext); 
+        oracleCallableStatement.execute();
+        bigDecimal = oracleCallableStatement.getBigDecimal(2);
+      } else if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1)) {
+        Utils.writeToLog(str, "Input user id is null returning null", paramWebAppsContext);
+      } 
+    } catch (Exception exception) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str, "Exception Occurred :: " + Utils.getExceptionStackTrace(exception), paramWebAppsContext, 4); 
+    } finally {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "END :: " + bigDecimal, paramWebAppsContext, 2); 
+      if (oracleCallableStatement != null)
+        try {
+          oracleCallableStatement.close();
+        } catch (Exception exception) {} 
+    } 
+    return bigDecimal;
+  }
+  
+  public static void updateSession(int paramInt1, int paramInt2) {
+    updateSession(paramInt1, paramInt2, null);
+  }
+  
+  public static void updateSession(int paramInt1, int paramInt2, String paramString) {
+    String str = "oracle.apps.fnd.sso.SessionMgr.updateSession(int, int, String)";
+    WebAppsContext webAppsContext = null;
+    boolean bool = false;
+    if (Utils.isAppsContextAvailable()) {
+      webAppsContext = Utils.getAppsContext();
+      bool = true;
+    } else {
+      webAppsContext = Utils.getAppsContext();
+    } 
+    try {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2)) {
+        Utils.writeToLog(str, "BEGIN", webAppsContext, 2);
+        Utils.writeToLog(str, "ParamList  isessionid: " + paramInt1 + " userid: " + paramInt2 + " sesCookieValue: " + paramString, webAppsContext, 2);
+      } 
+      updateSession(paramInt1, paramInt2, paramString, webAppsContext);
+    } finally {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "END", webAppsContext, 2); 
+      if (!bool)
+        Utils.releaseAppsContext(); 
+    } 
+  }
+  
+  public static void updateSession(int paramInt1, int paramInt2, String paramString, WebAppsContext paramWebAppsContext) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.updateSession(int, int, String, WebAppsContext)";
+    String str2 = null;
+    String str3 = null;
+    String str4 = null;
+    String str5 = null;
+    String str6 = null;
+    String str7 = null;
+    String str8 = null;
+    BigDecimal bigDecimal1 = null;
+    BigDecimal bigDecimal2 = null;
+    BigDecimal bigDecimal3 = null;
+    String str9 = null;
+    OracleCallableStatement oracleCallableStatement1 = null;
+    OracleCallableStatement oracleCallableStatement2 = null;
+    OracleConnection oracleConnection = null;
+    Object object = new Object();
+    if (paramWebAppsContext == null)
+      throw new RuntimeException("Web Apps Context is null"); 
+    try {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2)) {
+        Utils.writeToLog(str1, "BEGIN", paramWebAppsContext, 2);
+        Utils.writeToLog(str1, "ParamList  isessionid: " + paramInt1 + " userid: " + paramInt2 + " sesCookieValue: " + paramString, paramWebAppsContext, 2);
+      } 
+      if (paramString != null)
+        paramWebAppsContext.validateSession(paramString); 
+      String str10 = new String("begin icx_sec.setUserNLS(:1,:2,:3,:4,:5,:6,:7,:8,:9,:10,:11,:12); end;");
+      oracleConnection = (OracleConnection)Utils.getConnection(paramWebAppsContext);
+      oracleCallableStatement1 = (OracleCallableStatement)oracleConnection.prepareCall(str10);
+      oracleCallableStatement1.registerOutParameter(2, 12, 0, 256);
+      oracleCallableStatement1.registerOutParameter(3, 12, 0, 256);
+      oracleCallableStatement1.registerOutParameter(4, 12, 0, 256);
+      oracleCallableStatement1.registerOutParameter(5, 12, 0, 256);
+      oracleCallableStatement1.registerOutParameter(6, 12, 0, 256);
+      oracleCallableStatement1.registerOutParameter(7, 12, 0, 256);
+      oracleCallableStatement1.registerOutParameter(8, 12, 0, 256);
+      oracleCallableStatement1.registerOutParameter(9, 2);
+      oracleCallableStatement1.registerOutParameter(10, 2);
+      oracleCallableStatement1.registerOutParameter(11, 12, 0, 256);
+      oracleCallableStatement1.registerOutParameter(12, 2);
+      oracleCallableStatement1.setBigDecimal(1, new BigDecimal(paramInt2));
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "Executing pl/sql: " + str10, paramWebAppsContext); 
+      oracleCallableStatement1.execute();
+      str2 = oracleCallableStatement1.getString(2);
+      str3 = oracleCallableStatement1.getString(3);
+      str4 = oracleCallableStatement1.getString(4);
+      str5 = oracleCallableStatement1.getString(5);
+      str6 = oracleCallableStatement1.getString(6);
+      str7 = oracleCallableStatement1.getString(7);
+      str8 = oracleCallableStatement1.getString(8);
+      bigDecimal1 = oracleCallableStatement1.getBigDecimal(9, 5);
+      bigDecimal2 = oracleCallableStatement1.getBigDecimal(10, 5);
+      str9 = oracleCallableStatement1.getString(11);
+      bigDecimal3 = oracleCallableStatement1.getBigDecimal(12);
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "Executed pl/sql:  l_language: " + str2 + " l_language_code: " + str3 + " l_date_format: " + str4 + " l_date_language: " + str5 + " l_numeric_characters: " + str6 + " l_nls_sort: " + str7 + " l_nls_territory: " + str8 + " l_limit_time: " + bigDecimal1 + " l_limit_connects: " + bigDecimal2 + " l_org_id: " + str9 + " l_timeout: " + bigDecimal3, paramWebAppsContext); 
+      boolean bool = Utils.getGuestUserName(paramWebAppsContext).equalsIgnoreCase(paramWebAppsContext.getID(99));
+      StringBuffer stringBuffer = new StringBuffer("declare PRAGMA AUTONOMOUS_TRANSACTION;");
+      stringBuffer.append("l_user_id                 icx_sessions.user_id%type;");
+      stringBuffer.append("l_session_id              icx_sessions.session_id%type;");
+      stringBuffer.append("l_nls_language            icx_sessions.nls_language%type;");
+      stringBuffer.append("l_language_code           icx_sessions.language_code%type;");
+      stringBuffer.append("l_date_format_mask        icx_sessions.date_format_mask%type;");
+      stringBuffer.append("l_nls_date_language       icx_sessions.nls_date_language%type;");
+      stringBuffer.append("l_nls_numeric_characters  icx_sessions.nls_numeric_characters%type;");
+      stringBuffer.append("l_nls_sort                icx_sessions.nls_sort%type;");
+      stringBuffer.append("l_nls_territory           icx_sessions.nls_territory%type;");
+      stringBuffer.append("l_limit_time              icx_sessions.limit_time%type;");
+      stringBuffer.append("l_limit_connects          icx_sessions.limit_connects%type;");
+      stringBuffer.append("l_org_id                  icx_sessions.org_id%type;");
+      stringBuffer.append("l_time_out                icx_sessions.time_out%type;");
+      stringBuffer.append("l_xsid                    icx_sessions.xsid%type;");
+      stringBuffer.append("begin ");
+      stringBuffer.append(" l_user_id                := :1;");
+      stringBuffer.append(" l_nls_language           := :2;");
+      stringBuffer.append(" l_language_code          := :3;");
+      stringBuffer.append(" l_date_format_mask       := :4;");
+      stringBuffer.append(" l_nls_date_language      := :5;");
+      stringBuffer.append(" l_nls_numeric_characters := :6;");
+      stringBuffer.append(" l_nls_sort               := :7;");
+      stringBuffer.append(" l_nls_territory          := :8;");
+      stringBuffer.append(" l_limit_time             := :9;");
+      stringBuffer.append(" l_limit_connects         := :10;");
+      stringBuffer.append(" l_org_id                 := :11;");
+      stringBuffer.append(" l_time_out               := :12;");
+      stringBuffer.append(" l_session_id             := :13;");
+      stringBuffer.append(" l_xsid                   := fnd_session_management.NewXSID;");
+      stringBuffer.append(" UPDATE icx_sessions SET ");
+      stringBuffer.append("  user_id = l_user_id, ");
+      stringBuffer.append("  first_connect = SYSDATE,");
+      stringBuffer.append("  last_connect = SYSDATE, ");
+      stringBuffer.append("  counter =1,");
+      stringBuffer.append("  nls_language = l_nls_language,");
+      stringBuffer.append("  language_code = l_language_code,");
+      stringBuffer.append("  date_format_mask = l_date_format_mask,");
+      stringBuffer.append("  nls_date_language = l_nls_date_language,");
+      stringBuffer.append("  nls_numeric_characters = l_nls_numeric_characters,");
+      stringBuffer.append("  nls_sort = l_nls_sort,");
+      stringBuffer.append("  nls_territory = l_nls_territory,");
+      stringBuffer.append("  limit_time = l_limit_time, ");
+      stringBuffer.append("  limit_connects = l_limit_connects,");
+      stringBuffer.append("  org_id = l_org_id,");
+      stringBuffer.append("  time_out = l_time_out ");
+      if (bool)
+        stringBuffer.append(", GUEST = 'N'"); 
+      if (paramWebAppsContext.getHijackSession())
+        if (bool)
+          stringBuffer.append(", xsid = l_xsid");  
+      stringBuffer.append(" WHERE ");
+      stringBuffer.append("  session_id = l_session_id;");
+      stringBuffer.append("  :14 := l_xsid;");
+      stringBuffer.append(" commit;");
+      stringBuffer.append(" exception when others then ");
+      stringBuffer.append("rollback;");
+      stringBuffer.append("end;");
+      oracleCallableStatement2 = (OracleCallableStatement)oracleConnection.prepareCall(stringBuffer.toString());
+      oracleCallableStatement2.setBigDecimal(1, new BigDecimal(paramInt2));
+      if (str2 != null) {
+        oracleCallableStatement2.setString(2, str2);
+      } else {
+        oracleCallableStatement2.setNull(2, 12);
+      } 
+      if (str3 != null) {
+        oracleCallableStatement2.setString(3, str3);
+      } else {
+        oracleCallableStatement2.setNull(3, 12);
+      } 
+      if (str4 != null) {
+        oracleCallableStatement2.setString(4, str4);
+      } else {
+        oracleCallableStatement2.setNull(4, 12);
+      } 
+      if (str5 != null) {
+        oracleCallableStatement2.setString(5, str5);
+      } else {
+        oracleCallableStatement2.setNull(5, 12);
+      } 
+      if (str6 != null) {
+        oracleCallableStatement2.setString(6, str6);
+      } else {
+        oracleCallableStatement2.setNull(6, 12);
+      } 
+      if (str7 != null) {
+        oracleCallableStatement2.setString(7, str7);
+      } else {
+        oracleCallableStatement2.setNull(7, 12);
+      } 
+      if (str8 != null) {
+        oracleCallableStatement2.setString(8, str8);
+      } else {
+        oracleCallableStatement2.setNull(8, 12);
+      } 
+      if (bigDecimal1 != null) {
+        oracleCallableStatement2.setBigDecimal(9, bigDecimal1);
+      } else {
+        oracleCallableStatement2.setNull(9, 2);
+      } 
+      if (bigDecimal2 != null) {
+        oracleCallableStatement2.setBigDecimal(10, bigDecimal2);
+      } else {
+        oracleCallableStatement2.setNull(10, 2);
+      } 
+      if (str9 != null) {
+        oracleCallableStatement2.setBigDecimal(11, new BigDecimal(Integer.parseInt(str9)));
+      } else {
+        oracleCallableStatement2.setNull(11, 2);
+      } 
+      if (bigDecimal3 != null) {
+        oracleCallableStatement2.setBigDecimal(12, bigDecimal3);
+      } else {
+        oracleCallableStatement2.setNull(12, 2);
+      } 
+      oracleCallableStatement2.setBigDecimal(13, new BigDecimal(paramInt1));
+      oracleCallableStatement2.registerOutParameter(14, 12, 0, 32);
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "Executing 2. update: " + stringBuffer, paramWebAppsContext); 
+      oracleCallableStatement2.execute();
+      String str11 = oracleCallableStatement2.getString(14);
+      if (paramWebAppsContext.getHijackSession())
+        if (bool && str11 != null)
+          paramWebAppsContext.getEnvStore().setEnv("ICX_SESSION_COOKIE_VALUE", str11);  
+    } catch (Exception exception) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str1, "Exception Occurred : " + Utils.getExceptionStackTrace(exception), paramWebAppsContext, 4); 
+      throw new RuntimeException(getMessage(paramWebAppsContext, "FND-9910"));
+    } finally {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "END", paramWebAppsContext, 2); 
+      if (oracleCallableStatement2 != null)
+        try {
+          oracleCallableStatement2.close();
+        } catch (Exception exception) {} 
+      if (oracleCallableStatement1 != null)
+        try {
+          oracleCallableStatement1.close();
+        } catch (Exception exception) {} 
+    } 
+  }
+  
+  static String getModeCodeForSetting(WebAppsContext paramWebAppsContext, boolean paramBoolean) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.getModeCodeForSetting.(WebAppsContext, boolean)";
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2)) {
+      Utils.writeToLog(str1, "BEGIN", paramWebAppsContext, 2);
+      Utils.writeToLog(str1, "ParamList wctx: " + paramWebAppsContext + " ssoMode: " + paramBoolean, paramWebAppsContext, 2);
+    } 
+    String str2 = paramWebAppsContext.getProfileStore().getProfile("APPS_SSO");
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+      Utils.writeToLog(str1, "sMode(APPS_SSO): " + str2, paramWebAppsContext); 
+    String str3 = null;
+    if (paramBoolean == true) {
+      if (str2.equals("SSWA_SSO") || str2.equals("SSO_SDK")) {
+        str3 = "115J";
+      } else if (str2.equals("PORTAL")) {
+        str3 = "115X";
+      } else {
+        str3 = "115P";
+      } 
+    } else {
+      str3 = "115P";
+    } 
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "END returning: " + str3, paramWebAppsContext, 2); 
+    return str3;
+  }
+  
+  public static void updateSessionModeCode(WebAppsContext paramWebAppsContext, int paramInt, boolean paramBoolean) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.updateSessionModeCode(WebAppsContext, int, boolean)";
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2)) {
+      Utils.writeToLog(str1, "BEGIN", paramWebAppsContext, 2);
+      Utils.writeToLog(str1, "Paramlist  wctx: " + paramWebAppsContext + " icxsessionid: " + paramInt + " ssoMode: " + paramBoolean, paramWebAppsContext, 2);
+    } 
+    String str2 = getModeCodeForSetting(paramWebAppsContext, paramBoolean);
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+      Utils.writeToLog(str1, "sesMode: " + str2, paramWebAppsContext); 
+    updateSessionModeCode(paramWebAppsContext, paramInt, str2);
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "END", paramWebAppsContext, 2); 
+  }
+  
+  public static void updateSessionModeCode(WebAppsContext paramWebAppsContext, int paramInt, String paramString) {
+    String str = "oracle.apps.fnd.sso.SessionMgr.updateSessionModeCode(WebAppsContext, int, String)";
+    OracleCallableStatement oracleCallableStatement = null;
+    OracleConnection oracleConnection = null;
+    try {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2)) {
+        Utils.writeToLog(str, "BEGIN", paramWebAppsContext, 2);
+        Utils.writeToLog(str, "ParamList  wctx: " + paramWebAppsContext + " icxsessionid: " + paramInt + " sesMode: " + paramString, paramWebAppsContext, 2);
+      } 
+      oracleConnection = (OracleConnection)paramWebAppsContext.getJDBCConnection();
+      String str1 = "declare PRAGMA AUTONOMOUS_TRANSACTION;begin UPDATE icx_sessions SET mode_code = :1 WHERE session_id = :2;commit;exception when others then rollback;end;";
+      oracleCallableStatement = (OracleCallableStatement)oracleConnection.prepareCall(str1);
+      oracleCallableStatement.setString(1, paramString);
+      oracleCallableStatement.setBigDecimal(2, new BigDecimal(paramInt));
+      oracleCallableStatement.execute();
+    } catch (Exception exception) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str, "Exception Occurred : " + Utils.getExceptionStackTrace(exception), paramWebAppsContext, 4); 
+      throw new RuntimeException(Utils.getExceptionStackTrace(exception));
+    } finally {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "END", paramWebAppsContext, 2); 
+      if (oracleCallableStatement != null)
+        try {
+          oracleCallableStatement.close();
+        } catch (Exception exception) {} 
+    } 
+  }
+  
+  static void updateSessionCounters(BigDecimal paramBigDecimal) {
+    String str = "oracle.apps.fnd.sso.SessionMgr.updateSessionCounters(BigDecimal)";
+    WebAppsContext webAppsContext = null;
+    boolean bool = false;
+    if (Utils.isAppsContextAvailable()) {
+      webAppsContext = Utils.getAppsContext();
+      bool = true;
+    } else {
+      webAppsContext = Utils.getAppsContext();
+    } 
+    if (((AppsLog)webAppsContext.getLog()).isEnabled(2)) {
+      Utils.writeToLog(str, "BEGIN", webAppsContext, 2);
+      Utils.writeToLog(str, "ParamList  icxsessionid: " + paramBigDecimal, webAppsContext, 2);
+    } 
+    if (paramBigDecimal == null)
+      throw new RuntimeException(getMessage(webAppsContext, "FND-9912")); 
+    Object object = null;
+    OracleCallableStatement oracleCallableStatement = null;
+    OracleConnection oracleConnection = null;
+    try {
+      oracleConnection = (OracleConnection)Utils.getConnection(webAppsContext);
+      String str1 = "declare PRAGMA AUTONOMOUS_TRANSACTION;begin UPDATE icx_sessions SET first_connect = SYSDATE, last_connect = SYSDATE, counter =1 WHERE session_id = :1;commit;exception when others then rollback;end;";
+      oracleCallableStatement = (OracleCallableStatement)oracleConnection.prepareCall(str1);
+      oracleCallableStatement.setBigDecimal(1, paramBigDecimal);
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "Executing update: " + str1, webAppsContext); 
+      oracleCallableStatement.execute();
+    } catch (Exception exception) {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str, "Exception Occurred : " + Utils.getExceptionStackTrace(exception), webAppsContext, 4); 
+      throw new RuntimeException(getMessage(webAppsContext, "FND-9910"));
+    } finally {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "END", webAppsContext, 2); 
+      if (oracleCallableStatement != null)
+        try {
+          oracleCallableStatement.close();
+        } catch (Exception exception) {} 
+      if (!bool)
+        Utils.releaseAppsContext(); 
+    } 
+  }
+  
+  public static String createGuestSession(HttpServletRequest paramHttpServletRequest, HttpServletResponse paramHttpServletResponse, boolean paramBoolean) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.createGuestSession(HttpServletRequest, HttpServletResponse, boolean)";
+    WebAppsContext webAppsContext = null;
+    boolean bool = false;
+    String str2 = null;
+    if (Utils.isAppsContextAvailable()) {
+      webAppsContext = Utils.getAppsContext();
+      bool = true;
+    } else {
+      webAppsContext = Utils.getAppsContext();
+    } 
+    try {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2)) {
+        Utils.writeToLog(str1, "BEGIN", webAppsContext, 2);
+        Utils.writeToLog(str1, "Paramlist: request: " + paramHttpServletRequest + " response: " + paramHttpServletResponse + " check: " + paramBoolean, webAppsContext, 2);
+      } 
+      if (paramBoolean == true) {
+        String str = getAppsCookie(paramHttpServletRequest);
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str1, "Cookie Value: " + str, webAppsContext); 
+        if (str != null) {
+          boolean bool1 = webAppsContext.validateSession(str);
+          if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+            Utils.writeToLog(str1, "validateSession test: " + bool1, webAppsContext); 
+          if (bool1 == true) {
+            str2 = webAppsContext.getEnvStore().getEnv("ICX_SESSION_ID");
+            if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+              Utils.writeToLog(str1, "END: returnValue: " + str2, webAppsContext, 2); 
+            return str2;
+          } 
+        } 
+      } 
+      Cookie cookie = createGuestSession(paramHttpServletRequest, paramHttpServletResponse);
+      paramHttpServletResponse.addCookie(cookie);
+      str2 = webAppsContext.getEnvStore().getEnv("ICX_SESSION_ID");
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "END: returnValue: " + str2, webAppsContext, 2); 
+      return str2;
+    } finally {
+      if (!bool)
+        Utils.releaseAppsContext(); 
+    } 
+  }
+  
+  public static String createGuestSession(HttpServletRequest paramHttpServletRequest, HttpServletResponse paramHttpServletResponse, boolean paramBoolean, String paramString) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.createGuestSession(HttpServletRequest, HttpServletResponse, boolean)";
+    WebAppsContext webAppsContext = null;
+    boolean bool = false;
+    String str2 = null;
+    if (Utils.isAppsContextAvailable()) {
+      webAppsContext = Utils.getAppsContext();
+      bool = true;
+    } else {
+      webAppsContext = Utils.getAppsContext();
+    } 
+    try {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2)) {
+        Utils.writeToLog(str1, "BEGIN", webAppsContext, 2);
+        Utils.writeToLog(str1, "Paramlist: request: " + paramHttpServletRequest + " response: " + paramHttpServletResponse + " check: " + paramBoolean, webAppsContext, 2);
+      } 
+      if (paramBoolean == true) {
+        String str = getAppsCookie(paramHttpServletRequest);
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str1, "Cookie Value: " + str, webAppsContext); 
+        if (str != null) {
+          boolean bool1 = webAppsContext.validateSession(str);
+          if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+            Utils.writeToLog(str1, "validateSession test: " + bool1, webAppsContext); 
+          if (bool1 == true) {
+            str2 = webAppsContext.getEnvStore().getEnv("ICX_SESSION_ID");
+            if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+              Utils.writeToLog(str1, "END: returnValue: " + str2, webAppsContext, 2); 
+            return str2;
+          } 
+        } 
+      } 
+      Cookie cookie = createGuestSession(paramHttpServletRequest, paramHttpServletResponse, paramString);
+      paramHttpServletResponse.addCookie(cookie);
+      str2 = webAppsContext.getEnvStore().getEnv("ICX_SESSION_ID");
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "END: returnValue: " + str2, webAppsContext, 2); 
+      return str2;
+    } finally {
+      if (!bool)
+        Utils.releaseAppsContext(); 
+    } 
+  }
+  
+  static Cookie createGuestSession(HttpServletRequest paramHttpServletRequest, HttpServletResponse paramHttpServletResponse) {
+    String str = Utils.getGuestUserName();
+    return createSession(str, paramHttpServletRequest, paramHttpServletResponse);
+  }
+  
+  static Cookie createGuestSession(HttpServletRequest paramHttpServletRequest, HttpServletResponse paramHttpServletResponse, String paramString) {
+    String str = Utils.getGuestUserName();
+    return createSession(str, paramHttpServletRequest, paramHttpServletResponse, paramString);
+  }
+  
+  static Cookie createSession(String paramString1, HttpServletRequest paramHttpServletRequest, HttpServletResponse paramHttpServletResponse, String paramString2) {
+    String str = "oracle.apps.fnd.sso.SessionMgr.createSession(String, HttpServletRequest, HttpServletResponse, String)";
+    WebAppsContext webAppsContext = null;
+    boolean bool = false;
+    Connection connection = null;
+    Cookie cookie = null;
+    if (Utils.isAppsContextAvailable()) {
+      webAppsContext = Utils.getAppsContext();
+      bool = true;
+    } else {
+      webAppsContext = Utils.getAppsContext();
+    } 
+    try {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2)) {
+        Utils.writeToLog(str, "BEGIN", webAppsContext, 2);
+        Utils.writeToLog(str, "Paramlist:  username: " + paramString1 + " request: " + paramHttpServletRequest + " response: " + paramHttpServletResponse + " langCode: " + paramString2, webAppsContext, 2);
+      } 
+      webAppsContext.getErrorStack().clear();
+      connection = Utils.getConnection(webAppsContext);
+      LanguageContext languageContext = LanguageContext.getThreadLangContext();
+      if (paramString2 != null)
+        languageContext.putAPIParameter(paramString2); 
+      String str1 = languageContext.calculate();
+      boolean bool1 = webAppsContext.createSession(paramString1, str1);
+      if (bool1)
+        languageContext.recordLastSessionLanguage(paramString1, str1); 
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "wctx.createSession createFlag: " + bool1, webAppsContext); 
+      boolean bool2 = false;
+      for (byte b = 0; b < webAppsContext.getErrorStack().getMessageCount(); b++) {
+        bool2 = true;
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(4))
+          Utils.writeToLog(str, "Exception Occurred : " + webAppsContext.getErrorStack().nextMessage(), webAppsContext, 4); 
+      } 
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "icx session id : " + webAppsContext.getEnvStore().getEnv("ICX_SESSION_ID"), webAppsContext); 
+      if (!bool1 || bool2 == true)
+        throw new RuntimeException(getMessage(webAppsContext, "FND-9911")); 
+      String str2 = getSessionCookieName(webAppsContext);
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "ssoCookieName: " + str2, webAppsContext); 
+      if (str2 == null)
+        throw new RuntimeException(getMessage(webAppsContext, "FND-9914")); 
+      String str3 = webAppsContext.getSessionCookieValue();
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "ssoCookieValue: " + str3, webAppsContext); 
+      if (str3 == null)
+        throw new RuntimeException(getMessage(webAppsContext, "FND-9914")); 
+      cookie = new Cookie(str2, str3);
+      String str4 = null;
+      str4 = getServerDomain(paramHttpServletRequest, paramHttpServletResponse);
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "ssoCookieDomain from sso: " + str4, webAppsContext); 
+      if (str4 != null && !"NONE".equals(str4))
+        cookie.setDomain(str4); 
+      boolean bool3 = false;
+      if (bool3) {
+        cookie.setPath("/; HTTPOnly");
+      } else {
+        cookie.setPath("/");
+      } 
+      if (isSSLMode(paramHttpServletRequest))
+        cookie.setSecure(true); 
+    } finally {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "END: return: " + cookie, webAppsContext, 2); 
+      if (!bool)
+        Utils.releaseAppsContext(); 
+    } 
+    return cookie;
+  }
+  
+  static Cookie createSession(String paramString, HttpServletRequest paramHttpServletRequest, HttpServletResponse paramHttpServletResponse) {
+    String str = "oracle.apps.fnd.sso.SessionMgr.createSession(String, HttpServletRequest, HttpServletResponse)";
+    WebAppsContext webAppsContext = null;
+    boolean bool = false;
+    Cookie cookie = null;
+    if (Utils.isAppsContextAvailable()) {
+      webAppsContext = Utils.getAppsContext();
+      bool = true;
+    } else {
+      webAppsContext = Utils.getAppsContext();
+    } 
+    try {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2)) {
+        Utils.writeToLog(str, "BEGIN", webAppsContext, 2);
+        Utils.writeToLog(str, "Paramlist:  username: " + paramString + " request: " + paramHttpServletRequest + " response: " + paramHttpServletResponse, webAppsContext, 2);
+      } 
+      webAppsContext.getErrorStack().clear();
+      boolean bool1 = webAppsContext.createSession(Utils.getUserId(paramString));
+      boolean bool2 = false;
+      for (byte b = 0; b < webAppsContext.getErrorStack().getMessageCount(); b++) {
+        bool2 = true;
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(4))
+          Utils.writeToLog(str, "Exception Occurred : " + webAppsContext.getErrorStack().nextMessage(), webAppsContext, 4); 
+      } 
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "icx session id : " + webAppsContext.getEnvStore().getEnv("ICX_SESSION_ID"), webAppsContext); 
+      if (!bool1 || bool2 == true)
+        throw new RuntimeException(getMessage(webAppsContext, "FND-9911")); 
+      String str1 = getSessionCookieName(webAppsContext);
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "ssoCookieName: " + str1, webAppsContext); 
+      if (str1 == null)
+        throw new RuntimeException(getMessage(webAppsContext, "FND-9914")); 
+      String str2 = webAppsContext.getSessionCookieValue();
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "ssoCookieValue: " + str2, webAppsContext); 
+      if (str2 == null)
+        throw new RuntimeException(getMessage(webAppsContext, "FND-9914")); 
+      cookie = new Cookie(str1, str2);
+      String str3 = null;
+      str3 = getServerDomain(paramHttpServletRequest, paramHttpServletResponse);
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "ssoCookieDomain from sso: " + str3, webAppsContext); 
+      if (str3 != null && !"NONE".equals(str3))
+        cookie.setDomain(str3); 
+      boolean bool3 = false;
+      if (bool3) {
+        cookie.setPath("/; HTTPOnly");
+      } else {
+        cookie.setPath("/");
+      } 
+      if (isSSLMode(paramHttpServletRequest))
+        cookie.setSecure(true); 
+    } finally {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "END: return: " + cookie, webAppsContext, 2); 
+      if (!bool)
+        Utils.releaseAppsContext(); 
+    } 
+    return cookie;
+  }
+  
+  static boolean isSSLMode(HttpServletRequest paramHttpServletRequest) {
+    String str = getProtocol(paramHttpServletRequest);
+    if (str != null && str.equalsIgnoreCase("https:"))
+      return true; 
+    return false;
+  }
+  
+  static String getProtocol(HttpServletRequest paramHttpServletRequest) {
+    String str = "oracle.apps.fnd.sso.SessionMgr.getProtocol(HttpServletRequest)";
+    if (protocol != null)
+      return protocol; 
+    synchronized (SessionMgr.class) {
+      if (protocol != null)
+        return protocol; 
+      WebAppsContext webAppsContext = null;
+      boolean bool = false;
+      if (Utils.isAppsContextAvailable()) {
+        webAppsContext = Utils.getAppsContext();
+        bool = true;
+      } else {
+        webAppsContext = Utils.getAppsContext();
+      } 
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2)) {
+        Utils.writeToLog(str, "BEGIN", webAppsContext, 2);
+        Utils.writeToLog(str, "Paramlist:  request: " + paramHttpServletRequest, webAppsContext, 2);
+      } 
+      String str1 = "begin :1 := FND_WEB_CONFIG.PROTOCOL; end;";
+      OracleCallableStatement oracleCallableStatement = null;
+      Connection connection = null;
+      ResultSet resultSet = null;
+      try {
+        connection = Utils.getConnection(webAppsContext);
+        oracleCallableStatement = (OracleCallableStatement)connection.prepareCall(str1);
+        oracleCallableStatement.registerOutParameter(1, 12, 0, 64);
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str, "Executing pls/sql: " + str1, webAppsContext); 
+        oracleCallableStatement.execute();
+        protocol = oracleCallableStatement.getString(1);
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str, "Output of pls/sql protocol: " + protocol, webAppsContext); 
+      } catch (Exception exception) {
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(4))
+          Utils.writeToLog(str, "Exception Occurred: " + Utils.getExceptionStackTrace(exception), webAppsContext, 4); 
+        throw new RuntimeException(getMessage(webAppsContext, "FND-9914"));
+      } finally {
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+          Utils.writeToLog(str, "END returning: " + protocol, webAppsContext, 2); 
+        try {
+          if (resultSet != null)
+            resultSet.close(); 
+          if (oracleCallableStatement != null)
+            oracleCallableStatement.close(); 
+        } catch (Exception exception) {}
+        if (!bool)
+          Utils.releaseAppsContext(); 
+      } 
+    } 
+    return protocol;
+  }
+  
+  public static BigDecimal getICXSessionInfo(String paramString, String[] paramArrayOfString) {
+    String str = "oracle.apps.fnd.sso.SessionMgr.getICXSessionInfo(String, String[])";
+    WebAppsContext webAppsContext = null;
+    boolean bool = false;
+    if (Utils.isAppsContextAvailable()) {
+      webAppsContext = Utils.getAppsContext();
+      bool = true;
+    } else {
+      webAppsContext = Utils.getAppsContext();
+    } 
+    if (((AppsLog)webAppsContext.getLog()).isEnabled(2)) {
+      Utils.writeToLog(str, "BEGIN", webAppsContext, 2);
+      Utils.writeToLog(str, "Paramlist icxsession: " + paramString + " name: " + paramArrayOfString, webAppsContext, 2);
+    } 
+    if (paramString == null)
+      return null; 
+    if (paramArrayOfString == null || paramArrayOfString.length < 1) {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str, "name parameter is not set correctly", webAppsContext, 4); 
+      throw new RuntimeException("Invalid function inputs. Parameter name should not be null and should be a 1 element array.");
+    } 
+    BigDecimal bigDecimal = null;
+    try {
+      bigDecimal = getICXSessionInfo(paramString, paramArrayOfString, webAppsContext);
+    } finally {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "END: return: " + bigDecimal, webAppsContext, 2); 
+      if (!bool)
+        Utils.releaseAppsContext(); 
+    } 
+    return bigDecimal;
+  }
+  
+  public static BigDecimal getICXSessionInfo(String paramString, String[] paramArrayOfString, WebAppsContext paramWebAppsContext) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.getICXSessionInfo(String, String[], WebAppsContext)";
+    if (paramWebAppsContext == null)
+      throw new RuntimeException("Web Apps Context is null"); 
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2)) {
+      Utils.writeToLog(str1, "BEGIN", paramWebAppsContext, 2);
+      Utils.writeToLog(str1, "Paramlist icxsession: " + paramString + " name: " + paramArrayOfString, paramWebAppsContext, 2);
+    } 
+    if (paramString == null)
+      return null; 
+    if (paramArrayOfString == null || paramArrayOfString.length < 1) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str1, "name parameter is not set correctly", paramWebAppsContext, 4); 
+      throw new RuntimeException("Invalid function inputs. Parameter name should not be null and should be a 1 element array.");
+    } 
+    OracleCallableStatement oracleCallableStatement = null;
+    OracleConnection oracleConnection = null;
+    BigDecimal bigDecimal = null;
+    String str2 = "DECLARE username varchar2(100); l_session_id number; BEGIN  l_session_id := icx_call.decrypt3(:1); username := icx_sec.getid(icx_sec.PV_USERNAME,null,  l_session_id); :2 := username; :3 := l_session_id; END; ";
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+      Utils.writeToLog(str1, "Entering try/catch ", paramWebAppsContext); 
+    try {
+      oracleConnection = (OracleConnection)Utils.getConnection(paramWebAppsContext);
+      oracleCallableStatement = (OracleCallableStatement)oracleConnection.prepareCall(str2);
+      oracleCallableStatement.setString(1, paramString);
+      oracleCallableStatement.registerOutParameter(2, 12, 0, 256);
+      oracleCallableStatement.registerOutParameter(3, 2);
+      oracleCallableStatement.execute();
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "Executed query: " + str2, paramWebAppsContext); 
+      paramArrayOfString[0] = oracleCallableStatement.getString(2);
+      bigDecimal = oracleCallableStatement.getBigDecimal(3, 5);
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "name[0]: " + paramArrayOfString[0] + " osid: " + bigDecimal, paramWebAppsContext); 
+    } catch (Exception exception) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str1, "Exception Occured: " + Utils.getExceptionStackTrace(exception), paramWebAppsContext, 4); 
+      return null;
+    } finally {
+      if (oracleCallableStatement != null)
+        try {
+          oracleCallableStatement.close();
+        } catch (Exception exception) {} 
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "END: return: " + bigDecimal, paramWebAppsContext, 2); 
+    } 
+    return bigDecimal;
+  }
+  
+  protected static void printICXSessionInfo(String paramString) {
+    Hashtable hashtable = getICXSessionInfo(paramString);
+    if (hashtable != null) {
+      Enumeration<String> enumeration = hashtable.keys();
+      while (enumeration.hasMoreElements()) {
+        String str1 = enumeration.nextElement();
+        String str2 = (String)hashtable.get(str1);
+      } 
+    } 
+  }
+  
+  public static Hashtable getICXSessionInfo(String paramString, WebAppsContext paramWebAppsContext) {
+    if (paramString == null || paramString.equals("-1"))
+      return null; 
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.getICXSessionInfo(String)";
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "BEGIN", paramWebAppsContext, 2); 
+    OracleCallableStatement oracleCallableStatement = null;
+    OracleConnection oracleConnection = null;
+    BigDecimal bigDecimal = null;
+    Hashtable<String, String> hashtable = null;
+    String str2 = "DECLARE username varchar2(100); l_session_id number; BEGIN  l_session_id := icx_call.decrypt3(:1); username := icx_sec.getid(icx_sec.PV_USERNAME,null, l_session_id); :2 := username; :3 := l_session_id; END; ";
+    try {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "Trying to execute: " + str2, paramWebAppsContext); 
+      oracleConnection = (OracleConnection)Utils.getConnection(paramWebAppsContext);
+      oracleCallableStatement = (OracleCallableStatement)oracleConnection.prepareCall(str2);
+      oracleCallableStatement.setString(1, paramString);
+      oracleCallableStatement.registerOutParameter(2, 12, 0, 256);
+      oracleCallableStatement.registerOutParameter(3, 2);
+      oracleCallableStatement.execute();
+      String str = oracleCallableStatement.getString(2);
+      bigDecimal = oracleCallableStatement.getBigDecimal(3, 5);
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "Executed query name: " + str + " osid: " + bigDecimal, paramWebAppsContext); 
+      if (bigDecimal == null)
+        return null; 
+      int i = bigDecimal.intValue();
+      hashtable = getICXSessionInfo(i, oracleConnection);
+      if (hashtable != null)
+        hashtable.put("USER_NAME", str); 
+    } catch (Exception exception) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str1, "Exception Occurred : " + Utils.getExceptionStackTrace(exception), paramWebAppsContext, 4); 
+      return null;
+    } finally {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "END", paramWebAppsContext, 2); 
+      if (oracleCallableStatement != null)
+        try {
+          oracleCallableStatement.close();
+        } catch (Exception exception) {} 
+    } 
+    return hashtable;
+  }
+  
+  public static Hashtable getICXSessionInfo(String paramString) {
+    boolean bool = Utils.isAppsContextAvailable();
+    try {
+      return getICXSessionInfo(paramString, Utils.getAppsContext());
+    } finally {
+      if (!bool)
+        Utils.releaseAppsContext(); 
+    } 
+  }
+  
+  private static Hashtable getICXSessionInfo(int paramInt, OracleConnection paramOracleConnection) {
+    if (paramOracleConnection == null)
+      return null; 
+    String str1 = Utils.release12 ? "PROXY_USER_ID" : " NULL \"PROXY_USER_ID\" ";
+    String str2 = "select SESSION_ID, USER_ID, MODE_CODE, RESPONSIBILITY_ID, ORG_ID, FUNCTION_ID, NLS_LANGUAGE, DATE_FORMAT_MASK, COUNTER, FIRST_CONNECT, LAST_CONNECT, LIMIT_TIME, LIMIT_CONNECTS, DISABLED_FLAG, RESPONSIBILITY_APPLICATION_ID, LANGUAGE_CODE, NLS_DATE_LANGUAGE, NLS_NUMERIC_CHARACTERS, NLS_SORT, NLS_TERRITORY, SECURITY_GROUP_ID, HOME_URL," + str1 + " from icx_sessions where session_id = :1";
+    OraclePreparedStatement oraclePreparedStatement = null;
+    ResultSet resultSet = null;
+    Hashtable<Object, Object> hashtable = null;
+    try {
+      oraclePreparedStatement = (OraclePreparedStatement)paramOracleConnection.prepareStatement(str2);
+      oraclePreparedStatement.defineColumnType(1, 2);
+      oraclePreparedStatement.defineColumnType(2, 2);
+      oraclePreparedStatement.defineColumnType(3, 12, 30);
+      oraclePreparedStatement.defineColumnType(4, 2);
+      oraclePreparedStatement.defineColumnType(5, 2);
+      oraclePreparedStatement.defineColumnType(6, 2);
+      oraclePreparedStatement.defineColumnType(7, 12, 30);
+      oraclePreparedStatement.defineColumnType(8, 12, 100);
+      oraclePreparedStatement.defineColumnType(9, 2);
+      oraclePreparedStatement.defineColumnType(10, 91);
+      oraclePreparedStatement.defineColumnType(11, 91);
+      oraclePreparedStatement.defineColumnType(12, 2);
+      oraclePreparedStatement.defineColumnType(13, 2);
+      oraclePreparedStatement.defineColumnType(14, 12, 1);
+      oraclePreparedStatement.defineColumnType(15, 2);
+      oraclePreparedStatement.defineColumnType(16, 12, 30);
+      oraclePreparedStatement.defineColumnType(17, 12, 30);
+      oraclePreparedStatement.defineColumnType(18, 12, 30);
+      oraclePreparedStatement.defineColumnType(19, 12, 30);
+      oraclePreparedStatement.defineColumnType(20, 12, 30);
+      oraclePreparedStatement.defineColumnType(21, 2);
+      oraclePreparedStatement.defineColumnType(22, 12, 240);
+      oraclePreparedStatement.defineColumnType(23, 2);
+      oraclePreparedStatement.setInt(1, paramInt);
+      resultSet = oraclePreparedStatement.executeQuery();
+      while (resultSet.next()) {
+        hashtable = new Hashtable<Object, Object>(25);
+        hashtable.put("SESSION_ID", resultSet.getString(1));
+        hashtable.put("USER_ID", resultSet.getString(2));
+        hashtable.put("MODE_CODE", resultSet.getString(3));
+        hashtable.put("RESPONSIBILITY_ID", (resultSet.getString(4) == null) ? "NULL" : resultSet.getString(4));
+        hashtable.put("ORG_ID", (resultSet.getString(5) == null) ? "NULL" : resultSet.getString(5));
+        hashtable.put("FUNCTION_ID", (resultSet.getString(6) == null) ? "NULL" : resultSet.getString(6));
+        hashtable.put("NLS_LANGUAGE", (resultSet.getString(7) == null) ? "NULL" : resultSet.getString(7));
+        hashtable.put("DATE_FORMAT_MASK", (resultSet.getString(8) == null) ? "NULL" : resultSet.getString(8));
+        hashtable.put("COUNTER", (resultSet.getString(9) == null) ? "NULL" : resultSet.getString(9));
+        hashtable.put("FIRST_CONNECT", (resultSet.getString(10) == null) ? "NULL" : resultSet.getString(10));
+        hashtable.put("LAST_CONNECT", (resultSet.getString(11) == null) ? "NULL" : resultSet.getString(11));
+        hashtable.put("LIMIT_TIME", (resultSet.getString(12) == null) ? "NULL" : resultSet.getString(12));
+        hashtable.put("LIMIT_CONNECTS", (resultSet.getString(13) == null) ? "NULL" : resultSet.getString(13));
+        hashtable.put("DISABLED_FLAG", (resultSet.getString(14) == null) ? "NULL" : resultSet.getString(14));
+        hashtable.put("RESPONSIBILITY_APPLICATION_ID", (resultSet.getString(15) == null) ? "NULL" : resultSet.getString(15));
+        hashtable.put("LANGUAGE_CODE", (resultSet.getString(16) == null) ? "NULL" : resultSet.getString(16));
+        hashtable.put("NLS_DATE_LANGUAGE", (resultSet.getString(17) == null) ? "NULL" : resultSet.getString(17));
+        hashtable.put("NLS_NUMERIC_CHARACTERS", (resultSet.getString(18) == null) ? "NULL" : resultSet.getString(18));
+        hashtable.put("NLS_SORT", (resultSet.getString(19) == null) ? "NULL" : resultSet.getString(19));
+        hashtable.put("NLS_TERRITORY", (resultSet.getString(20) == null) ? "NULL" : resultSet.getString(20));
+        hashtable.put("SECURITY_GROUP_ID", (resultSet.getString(21) == null) ? "NULL" : resultSet.getString(21));
+        hashtable.put("HOME_URL", (resultSet.getString(22) == null) ? "NULL" : resultSet.getString(22));
+        if (Utils.release12)
+          hashtable.put("PROXY_USER_ID", (resultSet.getString(23) == null) ? "NULL" : resultSet.getString(23)); 
+      } 
+    } catch (Exception exception) {
+      return null;
+    } finally {
+      try {
+        if (resultSet != null)
+          resultSet.close(); 
+      } catch (Exception exception) {}
+      try {
+        if (oraclePreparedStatement != null)
+          oraclePreparedStatement.close(); 
+      } catch (Exception exception) {}
+    } 
+    return hashtable;
+  }
+  
+  public static void logoutUser(HttpServletRequest paramHttpServletRequest, HttpServletResponse paramHttpServletResponse) {
+    String str = "oracle.apps.fnd.sso.SessionMgr.logoutUser(HttpServletRequest, HttpServletResponse)";
+    WebAppsContext webAppsContext = null;
+    boolean bool = false;
+    if (Utils.isAppsContextAvailable()) {
+      webAppsContext = Utils.getAppsContext();
+      bool = true;
+    } else {
+      webAppsContext = Utils.getAppsContext();
+    } 
+    try {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "BEGIN", webAppsContext, 2); 
+      String str1 = getAppsCookie(paramHttpServletRequest);
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "Cookie value: " + str1, webAppsContext); 
+      if (str1 != null && !str1.equals("") && !str1.equals("-1")) {
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str, "Session not INVALID", webAppsContext); 
+        boolean bool1 = webAppsContext.disableUserSession(str1);
+        HttpSession httpSession = paramHttpServletRequest.getSession(false);
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str, "Invalidating the HttpSession", webAppsContext); 
+        if (httpSession != null) {
+          httpSession.invalidate();
+          httpSession.setMaxInactiveInterval(1);
+        } 
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str, "disableUserSession chk: " + bool1, webAppsContext); 
+        for (byte b = 0; b < webAppsContext.getErrorStack().getMessageCount(); b++);
+        String str2 = getSessionCookieName(webAppsContext);
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str, "ssoCookieName: " + str2, webAppsContext); 
+        if (str2 == null)
+          throw new RuntimeException(getMessage(webAppsContext, "FND-9914")); 
+        Cookie cookie = new Cookie(str2, "-1");
+        boolean bool2 = false;
+        if (bool2) {
+          cookie.setPath("/; HTTPOnly");
+        } else {
+          cookie.setPath("/");
+        } 
+        String str3 = null;
+        try {
+          str3 = getServerDomain(paramHttpServletRequest, paramHttpServletResponse);
+          if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+            Utils.writeToLog(str, "sso ssoCookieDomain: " + str3, webAppsContext); 
+        } catch (Exception exception) {}
+        if (str3 != null && !"NONE".equals(str3))
+          cookie.setDomain(str3); 
+        if (isSSLMode(paramHttpServletRequest))
+          cookie.setSecure(true); 
+        paramHttpServletResponse.addCookie(cookie);
+      } 
+    } finally {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "END", webAppsContext, 2); 
+      if (!bool)
+        Utils.releaseAppsContext(); 
+    } 
+  }
+  
+  static WebAppsContext getValidAppsContext(HttpServletRequest paramHttpServletRequest) {
+    String str = getAppsCookie(paramHttpServletRequest);
+    if (str == null || str.equals("-1") || str.equals(""))
+      return null; 
+    WebAppsContext webAppsContext = null;
+    boolean bool = false;
+    if (Utils.isAppsContextAvailable()) {
+      webAppsContext = Utils.getAppsContext();
+      bool = true;
+    } else {
+      webAppsContext = Utils.getAppsContext();
+    } 
+    try {
+      boolean bool1 = webAppsContext.validateSession(str);
+      if (!bool1) {
+        for (byte b = 0; b < webAppsContext.getErrorStack().getMessageCount(); b++) {
+          if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+            Utils.writeToLog("oracle.apps.fnd.sso.SessionMgr.getValidAppsContext", "Invalid ICX Session. : " + webAppsContext.getErrorStack().nextMessage(), webAppsContext, 1); 
+        } 
+        return null;
+      } 
+      return webAppsContext;
+    } finally {}
+  }
+  
+  public static boolean xssViolation(HttpServletRequest paramHttpServletRequest, WebAppsContext paramWebAppsContext) {
+    boolean bool = false;
+    String str = "oracle.apps.fnd.sso.SessionMgr.xssViolation(HttpServletRequest, WebAppsContext)";
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str, "BEGIN", paramWebAppsContext, 2); 
+    try {
+      Utils.setRequestCharacterEncoding(paramHttpServletRequest);
+      Enumeration<String> enumeration = paramHttpServletRequest.getParameterNames();
+      HTMLProcessor hTMLProcessor = new HTMLProcessor(1);
+      while (enumeration.hasMoreElements()) {
+        int i = -1;
+        String str1 = enumeration.nextElement();
+        String str2 = paramHttpServletRequest.getParameter(str1);
+        if (str2 != null && !str2.equals("")) {
+          if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+            Utils.writeToLog(str, "XSS Check parameterName: " + str1, paramWebAppsContext); 
+          i = HTMLProcessor.processInput(str2);
+          if (i > -1) {
+            if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+              Utils.writeToLog(str, "XSS Check failed for parameterName: " + str1, paramWebAppsContext); 
+            bool = true;
+            break;
+          } 
+        } 
+      } 
+    } catch (Exception exception) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str, "XSS Check failed due to exceptione: " + Utils.getExceptionStackTrace(exception), paramWebAppsContext, 4); 
+      bool = true;
+    } 
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str, "END:returning: " + bool, paramWebAppsContext, 2); 
+    return bool;
+  }
+  
+  public static String createAppsSession(UserPwd paramUserPwd, HttpServletRequest paramHttpServletRequest, HttpServletResponse paramHttpServletResponse) {
+    boolean bool1 = Utils.isAppsContextAvailable();
+    WebAppsContext webAppsContext = Utils.getAppsContext();
+    Connection connection = null;
+    String str1 = "oracle.apps.fnd.sso.SessionMgr[$Revision: 115.112.2.10].createAppsSession(UserPwd, HttpServletRequest, HttpServletResponse)";
+    String str2 = "";
+    AppsLog appsLog = Utils.getLog(webAppsContext);
+    boolean bool2 = appsLog.isEnabled(str1, 2);
+    boolean bool3 = appsLog.isEnabled(str1, 1);
+    boolean bool4 = appsLog.isEnabled(str1, 6);
+    try {
+      webAppsContext.getErrorStack().clear();
+      if (bool2) {
+        appsLog.write(str1, "BEGIN", 2);
+        appsLog.write(str1, "Paramlist:  request: " + paramHttpServletRequest + " response: " + paramHttpServletResponse, 2);
+      } 
+      Utils.setRequestCharacterEncoding(paramHttpServletRequest);
+      if (bool3)
+        appsLog.write(str1, "After setting Character encoding", 1); 
+      String str3 = paramHttpServletRequest.getParameter("requestUrl");
+      if (bool3)
+        appsLog.write(str1, "Got requestUrl: " + str3, 1); 
+      if (str3 == null || str3.equals("")) {
+        str3 = "APPSHOMEPAGE";
+        if (bool3)
+          appsLog.write(str1, "Defaulting to requestUrl: " + str3, 1); 
+      } 
+      String str4 = paramHttpServletRequest.getParameter("cancelUrl");
+      if (bool3)
+        appsLog.write(str1, "Got cancelUrl: " + str4, 1); 
+      if (str4 == null || str4.equals("")) {
+        if (bool3)
+          appsLog.write(str1, "cancelUrl not set", 1); 
+        str4 = SSOUtil.getLocalLoginUrl();
+        if (bool3)
+          appsLog.write(str1, "after substring " + str4, 1); 
+      } 
+      String str5 = paramHttpServletRequest.getParameter("home_url");
+      if (bool3)
+        appsLog.write(str1, "Got home_url: " + str5, 1); 
+      String str6 = paramHttpServletRequest.getParameter("langCode");
+      if (bool3) {
+        appsLog.write(str1, "Got langCode: " + str6, 1);
+        appsLog.write(str1, "Got Url params requestUrl: " + str3 + " cancelUrl: " + str4 + " home_url: " + str5 + " langCode: " + str6, 1);
+      } 
+      if (xssViolation(paramHttpServletRequest, webAppsContext)) {
+        if (bool3)
+          appsLog.write(str1, "Url Parameter validation Failed!", 1); 
+        String str = "requestUrl=" + URLEncoder.encode(str3, getCharSet()) + "&cancelUrl=" + URLEncoder.encode(str4, getCharSet()) + "&errCode=FND_SSO_PARAMVAL_SCAN_FAILED";
+        if (str6 != null && !str6.equals("") && str6.equals(URLEncoder.encode(str6, getCharSet())))
+          str = str + "&langCode=" + str6; 
+        if (str5 != null && !str5.equals(""))
+          str = str + "&home_url=" + URLEncoder.encode(str5, getCharSet()); 
+        str2 = SSOUtil.getLocalLoginUrl(str);
+        if (bool3)
+          appsLog.write(str1, "(XSS) returnUrl=" + str2, 1); 
+      } else {
+        SessionManager.AuthStatusCode authStatusCode;
+        if (bool3)
+          appsLog.write(str1, "XSS check passed before calling validateLogin", 1); 
+        String str = paramUserPwd.getUsername();
+        SessionManager sessionManager = webAppsContext.getSessionManager();
+        if (allowLocalLogin(str, webAppsContext)) {
+          authStatusCode = sessionManager.validateLogin(paramUserPwd);
+        } else {
+          if (bool3)
+            appsLog.write(str1, "Local login not allowed", 1); 
+          authStatusCode = SessionManager.AuthStatusCode.INVALID;
+        } 
+        if (bool3)
+          appsLog.write(str1, "After Calling SessionManager.validateLogin validationStatus: " + authStatusCode, 1); 
+        if (authStatusCode == null || authStatusCode.equals(SessionManager.AuthStatusCode.INVALID)) {
+          if (bool3)
+            appsLog.write(str1, "validateLogin Status:NULL or INVALID", 1); 
+          Message message = webAppsContext.getErrorStack().nextMessageObject();
+          String str7 = null;
+          String str8 = "";
+          String str9 = "&errCode=";
+          if (message != null) {
+            str7 = message.getName();
+            str8 = message.getMessageText(webAppsContext.getResourceStore());
+            str9 = str9 + URLEncoder.encode(str7, getCharSet());
+          } 
+          String str10 = "requestUrl=" + URLEncoder.encode(str3, getCharSet()) + "&cancelUrl=" + URLEncoder.encode(str4, getCharSet()) + str9;
+          if (str6 != null && !str6.equals("") && str6.equals(URLEncoder.encode(str6, getCharSet())))
+            str10 = str10 + "&langCode=" + str6; 
+          if (str5 != null && !str5.equals(""))
+            str10 = str10 + "&home_url=" + URLEncoder.encode(str5, getCharSet()); 
+          if (str != null && !"".equals(str))
+            str10 = str10 + "&username=" + URLEncoder.encode(str, getCharSet()); 
+          if (bool3)
+            appsLog.write(str1, " INVALID or NULL status returnUrl=" + str2, 1); 
+          str2 = SSOUtil.getLocalLoginUrl(str10);
+          if (bool3)
+            appsLog.write(str1, "returnUrl ::" + str2, 1); 
+        } else if (authStatusCode.equals(SessionManager.AuthStatusCode.VALID)) {
+          if (bool3)
+            appsLog.write(str1, "validateLogin Successful:VALID", 1); 
+          connection = Utils.getConnection();
+          createSession(str, webAppsContext, paramHttpServletRequest, paramHttpServletResponse, false, null, str6);
+          webAppsContext.stampForcedAuthLabels();
+          String str7 = paramHttpServletRequest.getParameter("_lAccessibility");
+          if (str7 != null && (str7.equals("Y") || str7.equals("S")))
+            webAppsContext.getProfileStore().saveSpecificProfile("ICX_ACCESSIBILITY_FEATURES", str7, "USER", String.valueOf(Utils.getUserId(str)), null); 
+          if (str3 == null || str3.equals("") || str3.equals("APPSHOMEPAGE")) {
+            str3 = SSOUtil.getStartPageUrl(webAppsContext, URLHelper.isPDARequest(paramHttpServletRequest));
+            if (bool3)
+              appsLog.write(str1, " setting returnUrl=" + str3, 1); 
+            if (str5 != null) {
+              if (str3.indexOf("OracleMyPage.home") != -1) {
+                if (str3.indexOf("?") != -1) {
+                  str3 = str3 + "&home_url=" + URLEncoder.encode(str5, getCharSet());
+                } else {
+                  str3 = str3 + "?home_url=" + URLEncoder.encode(str5, getCharSet());
+                } 
+                if (bool3)
+                  appsLog.write(str1, "added home_url", 1); 
+              } 
+            } else if (bool3) {
+              appsLog.write(str1, "home_url=NULL", 1);
+            } 
+          } 
+          str2 = str3;
+        } else if (authStatusCode.equals(SessionManager.AuthStatusCode.EXPIRED)) {
+          if (bool3)
+            appsLog.write(str1, "User password has expired:EXPIRED, creating Guest Session", 1); 
+          createSession(Utils.getGuestUserName(), webAppsContext, paramHttpServletRequest, paramHttpServletResponse, false, null, str6);
+          connection = Utils.getConnection(webAppsContext);
+          webAppsContext.setSessionAttribute("$FND$USER$NAME$", str);
+          String str7 = str3;
+          String str8 = null;
+          if (str6 != null && !"".equals(str6))
+            str8 = "langCode=" + URLEncoder.encode(str6, getCharSet()); 
+          String str9 = SSOUtil.getLocalLoginUrl(str8);
+          str8 = "returnUrl=" + URLEncoder.encode(str7, getCharSet());
+          str8 = str8 + "&cancelUrl=" + URLEncoder.encode(str9, getCharSet());
+          if (bool3)
+            appsLog.write(str1, "[CHGPWD]requestUrl=" + str3, 1); 
+          str2 = SSOUtil.getLocalPwdChangeUrl(str8);
+        } 
+      } 
+      if (bool2)
+        appsLog.write(str1, "END: returnUrl: " + str3, 2); 
+    } catch (Throwable throwable) {
+      if (bool4) {
+        appsLog.write(str1, "Exception" + throwable.toString(), 6);
+        appsLog.write(str1, throwable, 6);
+      } 
+      throw new RuntimeException(throwable.toString());
+    } finally {
+      if (!bool1)
+        Utils.releaseAppsContext(); 
+    } 
+    return str2;
+  }
+  
+  public static void createAppsSession(String paramString1, String paramString2, HttpServletRequest paramHttpServletRequest, HttpServletResponse paramHttpServletResponse) throws AuthenticationException {
+    WebAppsContext webAppsContext = null;
+    boolean bool = false;
+    Connection connection = null;
+    String str = "oracle.apps.fnd.sso.SessionMgr.createAppsSession(String, String, HttpServletRequest, HttpServletResponse)";
+    if (Utils.isAppsContextAvailable()) {
+      webAppsContext = Utils.getAppsContext();
+      bool = true;
+    } else {
+      webAppsContext = Utils.getAppsContext();
+    } 
+    webAppsContext.getErrorStack().clear();
+    try {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2)) {
+        Utils.writeToLog(str, "BEGIN", webAppsContext, 2);
+        Utils.writeToLog(str, "Before Calling validateLogin", webAppsContext, 2);
+      } 
+      SessionManager sessionManager = webAppsContext.getSessionManager();
+      boolean bool1 = (allowLocalLogin(paramString1.trim(), webAppsContext) && sessionManager.validateLogin(paramString1.trim(), paramString2.trim())) ? true : false;
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "After Calling validateLogin check: " + bool1, webAppsContext); 
+      if (!bool1)
+        throw new AuthenticationException(); 
+      boolean bool2 = sessionManager.passwordExpired();
+      if (bool2) {
+        createSession(Utils.getGuestUserName(), webAppsContext, paramHttpServletRequest, paramHttpServletResponse, false, null);
+        connection = Utils.getConnection(webAppsContext);
+        saveSessionAttribute(connection, webAppsContext, "$FND$USER$NAME$", paramString1);
+      } else {
+        createSession(paramString1, webAppsContext, paramHttpServletRequest, paramHttpServletResponse, false, null);
+      } 
+    } finally {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "END", webAppsContext, 2); 
+      if (!bool)
+        Utils.releaseAppsContext(); 
+    } 
+  }
+  
+  public static boolean isPHPMode(HttpServletRequest paramHttpServletRequest) {
+    WebAppsContext webAppsContext = null;
+    boolean bool1 = false;
+    boolean bool2 = false;
+    String str = "oracle.apps.fnd.sso.SessionMgr.isPHPMode(HttpServletRequest)";
+    if (Utils.isAppsContextAvailable()) {
+      webAppsContext = Utils.getAppsContext();
+      bool1 = true;
+    } else {
+      webAppsContext = Utils.getAppsContext();
+    } 
+    try {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "BEGIN", webAppsContext, 2); 
+      Hashtable hashtable = getICXSessionInfo(getAppsCookie(paramHttpServletRequest), webAppsContext);
+      if (hashtable == null) {
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str, "No existing session", webAppsContext); 
+        bool2 = !Utils.isSSOMode() ? true : false;
+      } else {
+        String str1 = (String)hashtable.get("MODE_CODE");
+        if (str1 == null || str1.equals("NULL") || str1.equals("115P"))
+          bool2 = true; 
+      } 
+    } catch (Exception exception) {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str, "Exception Occured: " + Utils.getExceptionStackTrace(exception), webAppsContext, 4); 
+    } finally {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "END: returnValue: " + bool2, webAppsContext, 2); 
+      if (!bool1)
+        Utils.releaseAppsContext(); 
+    } 
+    return bool2;
+  }
+  
+  public static boolean isValidGuestSession(HttpServletRequest paramHttpServletRequest) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.isValidGuestSession(HttpServletRequest request)";
+    String str2 = getAppsCookie(paramHttpServletRequest);
+    WebAppsContext webAppsContext = null;
+    boolean bool = false;
+    if (Utils.isAppsContextAvailable()) {
+      webAppsContext = Utils.getAppsContext();
+      bool = true;
+    } else {
+      webAppsContext = Utils.getAppsContext();
+    } 
+    if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "BEGIN", webAppsContext, 2); 
+    if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+      Utils.writeToLog(str1, "Cookie Value: " + str2, webAppsContext); 
+    boolean bool1 = webAppsContext.validateSession(str2);
+    if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+      Utils.writeToLog(str1, "validateSession check: " + bool1, webAppsContext); 
+    if (!bool1) {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "END return false", webAppsContext, 2); 
+      return false;
+    } 
+    try {
+      String str3 = Utils.getGuestUserName();
+      String str4 = webAppsContext.getID(99);
+      if (str4 != null && str4.equalsIgnoreCase(str3)) {
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+          Utils.writeToLog(str1, "END return true", webAppsContext, 2); 
+        return true;
+      } 
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "END return false", webAppsContext, 2); 
+      return false;
+    } finally {
+      if (!bool)
+        Utils.releaseAppsContext(); 
+    } 
+  }
+  
+  static void setPasswordExternal(String paramString1, String paramString2) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.setPasswordExternal(String, String)";
+    WebAppsContext webAppsContext = null;
+    boolean bool = false;
+    if (Utils.isAppsContextAvailable()) {
+      webAppsContext = Utils.getAppsContext();
+      bool = true;
+    } else {
+      webAppsContext = Utils.getAppsContext();
+    } 
+    if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "BEGIN", webAppsContext, 2); 
+    ProfileStore profileStore = webAppsContext.getProfileStore();
+    String str2 = profileStore.getSpecificProfile("APPS_SSO_LOCAL_LOGIN", String.valueOf(Utils.getUserId(paramString1)), null, null);
+    if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+      Utils.writeToLog(str1, "APPS_SSO_LOCAL_LOGIN for user " + paramString1 + ": " + str2, webAppsContext); 
+    if (str2 == null || !str2.equals("SSO")) {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "Cannot set password to EXTERNAL", webAppsContext); 
+      return;
+    } 
+    String str3 = "update fnd_user set ENCRYPTED_USER_PASSWORD = 'EXTERNAL', ENCRYPTED_FOUNDATION_PASSWORD='EXTERNAL' where user_name = :1 and user_guid=:2";
+    PreparedStatement preparedStatement = null;
+    Connection connection = null;
+    ResultSet resultSet = null;
+    Object object = null;
+    try {
+      if (paramString2 == null) {
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(4))
+          Utils.writeToLog(str1, "GUID is NULL", webAppsContext, 4); 
+        throw new RuntimeException(getMessage(webAppsContext, "FND-9916"));
+      } 
+      connection = Utils.getConnection(webAppsContext);
+      preparedStatement = connection.prepareStatement(str3);
+      preparedStatement.setString(1, paramString1.toUpperCase());
+      preparedStatement.setString(2, paramString2);
+      int i = preparedStatement.executeUpdate();
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "Executed update: " + str3, webAppsContext); 
+      if (i != 1) {
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog("oracle.apps.fnd.sso.SessionMgr.setPasswordExternal", "count is : " + i + " username : " + paramString1 + " guid: " + paramString2, webAppsContext, 1); 
+        throw new RuntimeException("Cannot update User Information. Multiple Accounts detected.");
+      } 
+      if (!bool)
+        connection.commit(); 
+    } catch (Exception exception) {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str1, "Exception occurred : " + Utils.getExceptionStackTrace(exception) + "\n username: " + paramString1 + " guid: " + paramString2, webAppsContext, 4); 
+      throw new RuntimeException(getMessage(webAppsContext, "FND-9916"));
+    } finally {
+      try {
+        if (resultSet != null)
+          resultSet.close(); 
+        if (preparedStatement != null)
+          preparedStatement.close(); 
+      } catch (Exception exception) {}
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "END", webAppsContext, 2); 
+      if (!bool);
+    } 
+    if (!bool)
+      Utils.releaseAppsContext(); 
+  }
+  
+  private static String site_char_set = null;
+  
+  static final String set_nls = "DECLARE\n   v varchar2(100);\nBEGIN\nselect ''''||min(NLS_LANGUAGE)||'''' into v from fnd_languages\n   where LANGUAGE_CODE=(select min(LANGUAGE) from  FND_LANGUAGES_TL);\n  dbms_session.set_nls('NLS_LANGUAGE',v);\n :1 := userenv('LANG'); end;\n";
+  
+  public static String getCharSet(WebAppsContext paramWebAppsContext) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.getCharSet(wctx)";
+    AppsLog appsLog = Utils.getLog(paramWebAppsContext);
+    boolean bool1 = appsLog.isEnabled(str1, 2);
+    boolean bool2 = appsLog.isEnabled(str1, 1);
+    if (bool1)
+      appsLog.write(str1, "BEGIN", 2); 
+    String str2 = null;
+    try {
+      ProfileStore profileStore = paramWebAppsContext.getProfileStore();
+      str2 = profileStore.getProfile("ICX_CLIENT_IANA_ENCODING");
+      if (bool2)
+        appsLog.write(str1, "ICX_CLIENT_IANA_ENCODING: " + str2, 1); 
+      if (str2 == null)
+        str2 = "ISO-8859-1"; 
+    } finally {
+      if (bool1)
+        appsLog.write(str1, "END: returnValue: " + str2, 2); 
+    } 
+    return str2;
+  }
+  
+  public static String getCharSet() {
+    boolean bool = Utils.isAppsContextAvailable();
+    try {
+      return getCharSet(Utils.getAppsContext());
+    } finally {
+      if (!bool)
+        Utils.releaseAppsContext(); 
+    } 
+  }
+  
+  public static Vector getInstalledLanguages() {
+    loadInstalledLanguages();
+    return installedLanguagesInfo;
+  }
+  
+  public static Vector getInstalledLangCodes() {
+    loadInstalledLanguages();
+    return installedLanguagesCode;
+  }
+  
+  public static boolean isInstalledLanguage(String paramString, WebAppsContext paramWebAppsContext) {
+    String str = "oracle.apps.fnd.sso.SessionMgr.isInstalledLanguage";
+    AppsLog appsLog = Utils.getLog(paramWebAppsContext);
+    boolean bool1 = appsLog.isEnabled(str, 2);
+    boolean bool2 = appsLog.isEnabled(str, 1);
+    if (bool1)
+      appsLog.write(str, "BEGIN", 2); 
+    try {
+      if (bool2)
+        appsLog.write(str, "langCode=" + paramString, 2); 
+      if (paramString == null) {
+        if (bool1)
+          appsLog.write(str, "END->false", 2); 
+        return false;
+      } 
+      loadInstalledLanguages();
+      boolean bool = installedLanguagesCode.contains(paramString.toUpperCase());
+      if (bool1)
+        appsLog.write(str, "END->" + bool, 2); 
+      return bool;
+    } catch (Exception exception) {
+      if (appsLog.isEnabled(str, 6))
+        appsLog.write(str, exception, 6); 
+      if (bool1)
+        appsLog.write(str, "END with exceptions", 2); 
+      return false;
+    } 
+  }
+  
+  public static boolean isInstalledLanguage(String paramString) {
+    boolean bool = Utils.isAppsContextAvailable();
+    try {
+      return isInstalledLanguage(paramString, Utils.getAppsContext());
+    } finally {
+      if (!bool)
+        Utils.releaseAppsContext(); 
+    } 
+  }
+  
+  private static boolean isLangLoaded(String paramString) {
+    boolean bool = false;
+    bool = loadedLanguages.contains(paramString);
+    return bool;
+  }
+  
+  private static void loadSpecificInstalledLanguages() {
+    String str = "oracle.apps.fnd.sso.SessionMgr.loadSpecificInstalledLanguages()";
+    synchronized (SessionMgr.class) {
+      WebAppsContext webAppsContext = null;
+      boolean bool = false;
+      if (Utils.isAppsContextAvailable()) {
+        webAppsContext = Utils.getAppsContext();
+        bool = true;
+      } else {
+        webAppsContext = Utils.getAppsContext();
+      } 
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "BEGIN", webAppsContext, 2); 
+      String str1 = webAppsContext.getCurrLangCode();
+      if (isLangLoaded(str1)) {
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str, "Specific info for lang already loaded: " + str1, webAppsContext); 
+        return;
+      } 
+      loadedLanguages.addElement(str1);
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "Loading specific into for a lang  for first time wctx.getCurrLangCode(): " + str1, webAppsContext); 
+      String str2 = "SELECT B.LANGUAGE_CODE, B.NLS_LANGUAGE, B.NLS_TERRITORY, B.NLS_CODESET,B.INSTALLED_FLAG, T.DESCRIPTION FROM FND_LANGUAGES_TL T, FND_LANGUAGES B WHERE B.LANGUAGE_CODE = T.LANGUAGE_CODE AND T.LANGUAGE = :1  AND B.INSTALLED_FLAG IN ('I', 'B') ORDER BY B.LANGUAGE_CODE";
+      OraclePreparedStatement oraclePreparedStatement = null;
+      Connection connection = null;
+      ResultSet resultSet = null;
+      String str3 = null;
+      try {
+        connection = Utils.getConnection(webAppsContext);
+        oraclePreparedStatement = (OraclePreparedStatement)connection.prepareStatement(str2);
+        oraclePreparedStatement.setString(1, webAppsContext.getCurrLangCode());
+        oraclePreparedStatement.defineColumnType(1, 12, 4);
+        oraclePreparedStatement.defineColumnType(2, 12, 30);
+        oraclePreparedStatement.defineColumnType(3, 12, 30);
+        oraclePreparedStatement.defineColumnType(4, 12, 30);
+        oraclePreparedStatement.defineColumnType(5, 12, 1);
+        oraclePreparedStatement.defineColumnType(6, 12, 255);
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str, "Executing query: " + str2, webAppsContext); 
+        resultSet = oraclePreparedStatement.executeQuery();
+        while (resultSet.next()) {
+          StringBuffer stringBuffer = new StringBuffer(5);
+          stringBuffer.append(str1);
+          stringBuffer.append("_");
+          stringBuffer.append(resultSet.getString(1));
+          LangInfo langInfo = new LangInfo(resultSet.getString(1), resultSet.getString(2), resultSet.getString(3), resultSet.getString(4), resultSet.getString(5), resultSet.getString(6));
+          str3 = resultSet.getString(6);
+          if (((AppsLog)webAppsContext.getLog()).isEnabled(1))
+            Utils.writeToLog(str, "Lang Desc => " + str3, webAppsContext); 
+          installedSpecificLangInfoTable.put(stringBuffer.toString(), langInfo);
+          installedSpecificLangDescTable.put(stringBuffer.toString(), str3);
+        } 
+      } catch (Exception exception) {
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(4))
+          Utils.writeToLog(str, "Exception occurred: " + Utils.getExceptionStackTrace(exception), webAppsContext, 4); 
+        throw new RuntimeException(getMessage(webAppsContext, "FND-9914"));
+      } finally {
+        if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+          Utils.writeToLog(str, "END", webAppsContext, 2); 
+        try {
+          if (resultSet != null)
+            resultSet.close(); 
+          if (oraclePreparedStatement != null)
+            oraclePreparedStatement.close(); 
+        } catch (Exception exception) {}
+        if (!bool);
+        if (!bool)
+          Utils.releaseAppsContext(); 
+      } 
+    } 
+  }
+  
+  private static void loadInstalledLanguages() {
+    if (initLang == true)
+      return; 
+    String str = "oracle.apps.fnd.sso.SessionMgr.loadInstalledLanguages()";
+    synchronized (SessionMgr.class) {
+      if (initLang == true)
+        return; 
+      boolean bool1 = Utils.isAppsContextAvailable();
+      WebAppsContext webAppsContext = Utils.getAppsContext();
+      AppsLog appsLog = Utils.getLog(webAppsContext);
+      boolean bool2 = appsLog.isEnabled(str, 2);
+      boolean bool3 = appsLog.isEnabled(str, 1);
+      if (bool2)
+        appsLog.write(str, "BEGIN", 2); 
+      String str1 = "SELECT LANGUAGE_CODE, NLS_LANGUAGE, NLS_TERRITORY, NLS_CODESET,INSTALLED_FLAG, DESCRIPTION FROM FND_LANGUAGES_VL WHERE installed_flag IN ('I', 'B') ORDER BY language_code";
+      OraclePreparedStatement oraclePreparedStatement = null;
+      Connection connection = null;
+      ResultSet resultSet = null;
+      byte b = 0;
+      try {
+        connection = Utils.getConnection(webAppsContext);
+        if (bool3)
+          appsLog.write(str, "got Connection", 1); 
+        if (bool3)
+          appsLog.write(str, "Seting lang" + str1, 1); 
+        CallableStatement callableStatement = connection.prepareCall("DECLARE\n   v varchar2(100);\nBEGIN\nselect ''''||min(NLS_LANGUAGE)||'''' into v from fnd_languages\n   where LANGUAGE_CODE=(select min(LANGUAGE) from  FND_LANGUAGES_TL);\n  dbms_session.set_nls('NLS_LANGUAGE',v);\n :1 := userenv('LANG'); end;\n");
+        callableStatement.registerOutParameter(1, 12);
+        callableStatement.execute();
+        String str2 = callableStatement.getString(1);
+        callableStatement.close();
+        if (bool3)
+          appsLog.write(str, "userenv('LANG')=" + str2, 1); 
+        oraclePreparedStatement = (OraclePreparedStatement)connection.prepareStatement(str1);
+        if (bool3)
+          appsLog.write(str, "SQL=" + str1, 1); 
+        oraclePreparedStatement.defineColumnType(1, 12, 4);
+        oraclePreparedStatement.defineColumnType(2, 12, 30);
+        oraclePreparedStatement.defineColumnType(3, 12, 30);
+        oraclePreparedStatement.defineColumnType(4, 12, 30);
+        oraclePreparedStatement.defineColumnType(5, 12, 1);
+        oraclePreparedStatement.defineColumnType(6, 12, 255);
+        resultSet = oraclePreparedStatement.executeQuery();
+        while (resultSet.next()) {
+          b++;
+          String str3 = resultSet.getString(1);
+          String str4 = resultSet.getString(2);
+          String str5 = resultSet.getString(3);
+          String str6 = resultSet.getString(4);
+          String str7 = resultSet.getString(5);
+          String str8 = resultSet.getString(6);
+          if (bool3)
+            appsLog.write(str, "Loading: " + str3 + " " + str4 + " " + str5 + " " + str6 + " " + str7 + " " + str8, 1); 
+          LangInfo langInfo = new LangInfo(str3, str4, str5, str6, str7, str8);
+          installedLanguagesInfo.addElement(langInfo);
+          installedLanguagesCode.addElement(resultSet.getString(1));
+          installedLanguagesDesc.addElement(resultSet.getString(6));
+        } 
+        if (bool3)
+          appsLog.write(str, "Loaded  " + b + " languages", 1); 
+        if (b == 0) {
+          if (appsLog.isEnabled(str, 6))
+            appsLog.write(str, "NO language found", 6); 
+          initLang = false;
+          throw new RuntimeException(getMessage(webAppsContext, "FND-9914"));
+        } 
+        initLang = true;
+      } catch (Exception exception) {
+        if (appsLog.isEnabled(str, 6))
+          appsLog.write(str, exception, 6); 
+        if (bool2)
+          appsLog.write(str, "END with exception", 2); 
+        throw new RuntimeException(getMessage(webAppsContext, "FND-9914"));
+      } finally {
+        if (bool2)
+          appsLog.write(str, "END", 2); 
+        try {
+          if (resultSet != null)
+            resultSet.close(); 
+          if (oraclePreparedStatement != null)
+            oraclePreparedStatement.close(); 
+        } catch (Exception exception) {}
+        if (!bool1);
+        if (!bool1)
+          Utils.releaseAppsContext(); 
+      } 
+    } 
+  }
+  
+  public static boolean isRtl(String paramString) {
+    if (paramString == null)
+      return false; 
+    if (paramString.equalsIgnoreCase("AR") || paramString.equalsIgnoreCase("IW"))
+      return true; 
+    return false;
+  }
+  
+  public static Vector getInstalledLanguageImages(HttpServletRequest paramHttpServletRequest, WebAppsContext paramWebAppsContext) {
+    return getInstalledLanguageImages(paramHttpServletRequest, paramWebAppsContext, false);
+  }
+  
+  public static Vector getInstalledLanguageImages(HttpServletRequest paramHttpServletRequest, WebAppsContext paramWebAppsContext, boolean paramBoolean) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.getInstalledLanguageImages(HttpServletRequest, WebAppsContext, boolean)";
+    byte b = 0;
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "BEGIN", paramWebAppsContext, 2); 
+    loadInstalledLanguages();
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+      Utils.writeToLog(str1, "Loaded installed languages", paramWebAppsContext); 
+    Vector<String> vector = new Vector();
+    if (installedLanguagesCode.size() <= 1) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "END no installed langs", paramWebAppsContext, 2); 
+      return vector;
+    } 
+    int i = installedLanguagesCode.size();
+    String str2 = paramWebAppsContext.getCurrLangCode();
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+      Utils.writeToLog(str1, "size: " + i + " currLang: " + str2, paramWebAppsContext); 
+    while (b < i) {
+      String str3 = installedLanguagesCode.elementAt(b);
+      String str4 = installedLanguagesDesc.elementAt(b);
+      String str5 = "";
+      if (str3.equals(str2)) {
+        str5 = "<A HREF=\"" + getLink(paramWebAppsContext, paramHttpServletRequest, str3, paramBoolean) + "\"> <IMG SRC=\"/OA_MEDIA/nls" + str3.toLowerCase() + "_a.gif\" ALT=\"" + str4 + "\" border=\"0\"></A>";
+      } else {
+        str5 = "<A HREF=\"" + getLink(paramWebAppsContext, paramHttpServletRequest, str3, paramBoolean) + "\"> <IMG SRC=\"/OA_MEDIA/nls" + str3.toLowerCase() + ".gif\" ALT=\"" + str4 + "\" border=\"0\"></A>";
+      } 
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "Link: " + str5, paramWebAppsContext); 
+      vector.addElement(str5);
+      b++;
+    } 
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "END returning langImages: " + vector, paramWebAppsContext, 2); 
+    return vector;
+  }
+  
+  public static Vector getInstalledLanguageImgInfo(HttpServletRequest paramHttpServletRequest, WebAppsContext paramWebAppsContext) {
+    return getInstalledLanguageImgInfo(paramHttpServletRequest, paramWebAppsContext, false);
+  }
+  
+  public static Vector getInstalledLanguageImgInfo(HttpServletRequest paramHttpServletRequest, WebAppsContext paramWebAppsContext, boolean paramBoolean) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.getInstalledLanguageImgInfo(HttpServletRequest, WebAppsContext, boolean)";
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "BEGIN", paramWebAppsContext, 2); 
+    loadSpecificInstalledLanguages();
+    Vector<Vector<String>> vector = new Vector();
+    if (installedLanguagesCode.size() <= 1)
+      return vector; 
+    int i = installedLanguagesCode.size();
+    byte b = 0;
+    String str2 = paramWebAppsContext.getCurrLangCode();
+    while (b < i) {
+      String str3 = installedLanguagesCode.elementAt(b);
+      StringBuffer stringBuffer = new StringBuffer(5);
+      stringBuffer.append(str2);
+      stringBuffer.append("_");
+      stringBuffer.append(str3);
+      String str4 = (String)installedSpecificLangDescTable.get(stringBuffer.toString());
+      Vector<String> vector1 = new Vector(3);
+      String str5 = "";
+      if (str3.equals(str2)) {
+        vector1.addElement(str3);
+        vector1.addElement("/OA_MEDIA/nls" + str3.toLowerCase() + "_a.gif");
+        vector1.addElement(str4);
+        vector1.addElement(getLink(paramWebAppsContext, paramHttpServletRequest, str3, paramBoolean));
+      } else {
+        vector1.addElement(str3);
+        vector1.addElement("/OA_MEDIA/nls" + str3.toLowerCase() + ".gif");
+        if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str1, "i => " + b + " langDesc => " + str4, paramWebAppsContext); 
+        vector1.addElement(str4);
+        vector1.addElement(getLink(paramWebAppsContext, paramHttpServletRequest, str3, paramBoolean));
+      } 
+      vector.addElement(vector1);
+      b++;
+    } 
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "END: return: " + vector, paramWebAppsContext, 2); 
+    return vector;
+  }
+  
+  private static String getLink(WebAppsContext paramWebAppsContext, HttpServletRequest paramHttpServletRequest, String paramString, boolean paramBoolean) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr[$Revision: 115.112.2.10].getLink(WebAppsContext, HttpServletRequest, String, boolean)";
+    AppsLog appsLog = Utils.getLog(paramWebAppsContext);
+    boolean bool1 = appsLog.isEnabled(str1, 2);
+    boolean bool2 = appsLog.isEnabled(str1, 1);
+    boolean bool3 = appsLog.isEnabled(str1, 4);
+    if (bool1)
+      appsLog.write(str1, "BEGIN", 2); 
+    String str2 = null;
+    if (bool2) {
+      appsLog.write(str1, "\trequest=" + ((paramHttpServletRequest != null) ? paramHttpServletRequest.toString() : "*NUL*"), 1);
+      appsLog.write(str1, "\tlangCode=" + ((paramString != null) ? paramString : "*NULL*"), 1);
+      appsLog.write(str1, "\tisSSO=" + (paramBoolean ? "true" : "false"), 1);
+    } 
+    StringBuffer stringBuffer1 = getRequestURL(paramWebAppsContext, paramHttpServletRequest);
+    stringBuffer1.append("?langCode=");
+    stringBuffer1.append(paramString);
+    StringBuffer stringBuffer2 = new StringBuffer(128);
+    if (paramBoolean) {
+      String str3 = paramHttpServletRequest.getParameter("p_submit_url");
+      StringBuffer stringBuffer3 = new StringBuffer(str3.substring(0, str3.indexOf("/ORASSO.")));
+      String str4 = paramHttpServletRequest.getParameter("site2pstoretoken");
+      String str5 = paramHttpServletRequest.getParameter("ssousername");
+      String str6 = paramHttpServletRequest.getParameter("p_error_code");
+      String str7 = paramHttpServletRequest.getParameter("p_cancel_url");
+      if (bool2)
+        appsLog.write(str1, "SSO URL:\tp_submit_url=" + str3 + "\n" + "\tsite2pstoretoken=" + str4 + "\n" + "\tssousername=" + str5 + "\n" + "\tp_error_code=" + str6 + "\n" + "\tp_cancel_url=" + str7, 1); 
+      stringBuffer3.append("ORASSO.wwctx_app_language.set_language?p_http_language=");
+      stringBuffer3.append(Authenticator.lmap.getHttpLangFromOracle(paramString));
+      stringBuffer3.append("&p_nls_language=");
+      stringBuffer3.append(paramString);
+      stringBuffer3.append("&p_nls_territory=");
+      stringBuffer3.append(Authenticator.lmap.getTerritoryCode(paramString));
+      if (bool2)
+        appsLog.write(str1, "p_http_language=" + Authenticator.lmap.getHttpLangFromOracle(paramString) + "\np_nls_language=" + paramString + "\np_nls_territory=" + Authenticator.lmap.getTerritoryCode(paramString), 1); 
+      stringBuffer3.append("&p_requested_url=");
+      StringBuffer stringBuffer4 = new StringBuffer(128);
+      stringBuffer4.append(stringBuffer1.toString() + "&site2pstoretoken=");
+      stringBuffer4.append(str4);
+      stringBuffer4.append("&ssousername=");
+      stringBuffer4.append(str5);
+      stringBuffer4.append("&p_cancel_url=");
+      stringBuffer4.append(str7);
+      stringBuffer3.append(URLEncoder.encode(stringBuffer4.toString(), getCharSet()));
+      str2 = stringBuffer3.toString();
+    } else {
+      Enumeration<String> enumeration = paramHttpServletRequest.getParameterNames();
+      stringBuffer2.append("langCode=" + URLEncoder.encode(paramString, getCharSet()));
+      while (enumeration != null && enumeration.hasMoreElements()) {
+        String str = enumeration.nextElement();
+        if (!str.equals("langCode") && !str.equals("errCode") && !str.equals("errText")) {
+          String str3 = paramHttpServletRequest.getParameter(str);
+          stringBuffer2.append("&");
+          stringBuffer2.append(URLEncoder.encode(str, getCharSet()));
+          stringBuffer2.append("=");
+          stringBuffer2.append(URLEncoder.encode(str3, getCharSet()));
+          continue;
+        } 
+        if (bool2)
+          appsLog.write(str1, "Not copying " + str, 1); 
+      } 
+      str2 = SSOUtil.getLocalLoginUrl(stringBuffer2.toString());
+    } 
+    if (bool1)
+      appsLog.write(str1, "END: return: " + str2, 2); 
+    return str2;
+  }
+  
+  public static StringBuffer getRequestURL(WebAppsContext paramWebAppsContext, HttpServletRequest paramHttpServletRequest) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.getRequestURL(WebAppsContext, HttpServletRequest)";
+    StringBuffer stringBuffer = new StringBuffer();
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "BEGIN", paramWebAppsContext, 2); 
+    String str2 = paramHttpServletRequest.getRequestURI();
+    String str3 = paramHttpServletRequest.getServletPath();
+    String str4 = paramHttpServletRequest.getPathInfo();
+    String str5 = AppsAgent.getServer();
+    stringBuffer.append(str5.substring(0, str5.length() - 1));
+    if (str3 != null) {
+      stringBuffer.append(str3);
+      if (str4 != null)
+        stringBuffer.append(str4); 
+    } else if (str2 != null) {
+      stringBuffer.append(str2);
+    } 
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "END: return: " + stringBuffer, paramWebAppsContext, 2); 
+    return stringBuffer;
+  }
+  
+  public static String getConnLang(Connection paramConnection) {
+    if (paramConnection == null)
+      return null; 
+    String str1 = "select userenv('LANG') from dual";
+    Statement statement = null;
+    String str2 = null;
+    ResultSet resultSet = null;
+    try {
+      statement = paramConnection.createStatement();
+      resultSet = statement.executeQuery(str1);
+      while (resultSet.next())
+        str2 = resultSet.getString(1); 
+    } catch (Exception exception) {
+      throw new RuntimeException(Utils.getExceptionStackTrace(exception));
+    } finally {
+      try {
+        if (resultSet != null)
+          resultSet.close(); 
+      } catch (Exception exception) {}
+      try {
+        if (statement != null)
+          statement.close(); 
+      } catch (Exception exception) {}
+    } 
+    return str2;
+  }
+  
+  public static void setUserLanguage(HttpServletRequest paramHttpServletRequest, WebAppsContext paramWebAppsContext) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.setUserLanguage(HttpServletRequest, WebAppsContext)";
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "BEGIN", paramWebAppsContext, 2); 
+    String str2 = paramHttpServletRequest.getParameter("langCode");
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+      Utils.writeToLog(str1, "checking langCode: " + str2, paramWebAppsContext); 
+    if (str2 == null) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "END not set", paramWebAppsContext, 2); 
+      return;
+    } 
+    String str3 = paramWebAppsContext.getID(99);
+    String str4 = Utils.getGuestUserName();
+    if (str3.equalsIgnoreCase(str4)) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "END lang not set for GUEST user", paramWebAppsContext, 2); 
+      return;
+    } 
+    ProfileStore profileStore = paramWebAppsContext.getProfileStore();
+    String str5 = profileStore.getSpecificProfile("ICX_LANGUAGE", null, null, null);
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+      Utils.writeToLog(str1, "sitelang: " + str5, paramWebAppsContext); 
+    String str6 = null;
+    try {
+      Connection connection = Utils.getConnection(paramWebAppsContext);
+      str6 = getUserLanguage("ICX_LANGUAGE", paramWebAppsContext.getUserId(), connection);
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "userlang: " + str6, paramWebAppsContext); 
+    } catch (Exception exception) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str1, "Exception occurred getting user lang. returning...user is : " + str3 + " User Id : " + paramWebAppsContext.getUserId() + "Selected Language is : " + str2 + " User Language is : " + str6, paramWebAppsContext, 4); 
+      return;
+    } 
+    if (str6 != null && str5 != null && str6.equals(str5)) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "user is : " + str3 + " User Id : " + paramWebAppsContext.getUserId() + " selected Language is : " + str2 + " User Language is : " + str6 + " sitelang is =>" + str5, paramWebAppsContext); 
+      return;
+    } 
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+      Utils.writeToLog(str1, "user is : " + str3 + " User Id : " + paramWebAppsContext.getUserId() + " Selected Language is : " + str2 + " User Language is : " + str6, paramWebAppsContext); 
+    String str7 = paramWebAppsContext.getNLSLanguage(str2.toUpperCase());
+    if (str6 == null && str7 != null && str5 != null && !str7.equals(str5))
+      profileStore.saveSpecificProfile("ICX_LANGUAGE", str7, "USER", String.valueOf(Utils.getUserId(str3)), null); 
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "END", paramWebAppsContext, 2); 
+  }
+  
+  private static String getUserLanguage(String paramString, int paramInt, Connection paramConnection) throws Exception {
+    String str1 = "select V.PROFILE_OPTION_VALUE from  FND_PROFILE_OPTIONS O, FND_PROFILE_OPTION_VALUES V where O.PROFILE_OPTION_NAME = :1 and   O.START_DATE_ACTIVE <= SYSDATE and    (nvl(O.END_DATE_ACTIVE,SYSDATE) >= SYSDATE) and    (V.LEVEL_ID = :2 and         V.LEVEL_VALUE = :3) and    O.PROFILE_OPTION_ID = V.PROFILE_OPTION_ID and    O.APPLICATION_ID    = V.APPLICATION_ID";
+    if (paramConnection == null)
+      return null; 
+    OraclePreparedStatement oraclePreparedStatement = null;
+    ResultSet resultSet = null;
+    String str2 = null;
+    long l1 = 10004L;
+    long l2 = paramInt;
+    try {
+      oraclePreparedStatement = (OraclePreparedStatement)paramConnection.prepareStatement(str1);
+      oraclePreparedStatement.defineColumnType(1, 12, 240);
+      oraclePreparedStatement.setString(1, paramString);
+      oraclePreparedStatement.setLong(2, l1);
+      oraclePreparedStatement.setLong(3, l2);
+      resultSet = oraclePreparedStatement.executeQuery();
+      if (resultSet.next())
+        str2 = resultSet.getString(1); 
+    } catch (Exception exception) {
+      throw exception;
+    } finally {
+      try {
+        if (oraclePreparedStatement != null)
+          oraclePreparedStatement.close(); 
+        if (resultSet != null)
+          resultSet.close(); 
+      } catch (Exception exception) {}
+    } 
+    return str2;
+  }
+  
+  private static String getSessionCookieName(WebAppsContext paramWebAppsContext) {
+    if (sessionCookieName != null)
+      return sessionCookieName; 
+    synchronized (SessionMgr.class) {
+      if (sessionCookieName != null)
+        return sessionCookieName; 
+      sessionCookieName = paramWebAppsContext.getSessionCookieName();
+    } 
+    return sessionCookieName;
+  }
+  
+  static String getMessage(WebAppsContext paramWebAppsContext, String paramString) {
+    Message message = new Message("FND", paramString);
+    return message.getMessageText(paramWebAppsContext.getResourceStore());
+  }
+  
+  static String getUserInAppsSession(HttpServletRequest paramHttpServletRequest, WebAppsContext paramWebAppsContext) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.getUserInAppsSession(HttpServletRequest, WebAppsContext)";
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "BEGIN", paramWebAppsContext, 2); 
+    String str2 = null;
+    String str3 = getAppsCookie(paramHttpServletRequest);
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+      Utils.writeToLog(str1, "Cookie Value: " + str3, paramWebAppsContext); 
+    if (str3 != null && !str3.equals("-1")) {
+      String str = paramWebAppsContext.checkSession(str3);
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str1, "Check Session check: " + str, paramWebAppsContext); 
+      if (str != null && "VALID".equals(str)) {
+        boolean bool = paramWebAppsContext.validateSession(str3);
+        if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str1, "isSessionValidated: " + bool, paramWebAppsContext); 
+        if (bool)
+          str2 = paramWebAppsContext.getID(99); 
+      } else if (str != null && "EXPIRED".equals(str)) {
+        String[] arrayOfString = new String[1];
+        BigDecimal bigDecimal = getICXSessionInfo(str3, arrayOfString);
+        if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+          Utils.writeToLog(str1, "EXPIRED PATH.. sessionUsername = " + arrayOfString + "  sessionId : " + bigDecimal, paramWebAppsContext); 
+        str2 = arrayOfString[0];
+      } 
+    } 
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+      Utils.writeToLog(str1, "END: returnValue: " + str2, paramWebAppsContext, 2); 
+    return str2;
+  }
+  
+  public static String getLoadedLangTable() {
+    Enumeration<String> enumeration = installedSpecificLangDescTable.keys();
+    StringBuffer stringBuffer = new StringBuffer(10000);
+    String str = null;
+    stringBuffer.append("<table border=6>\n");
+    stringBuffer.append("<caption><b>Specific Language Descriptions</b></caption>\n");
+    stringBuffer.append("<tr><td>Key</td><td>Description</td>></tr>\n");
+    while (enumeration.hasMoreElements()) {
+      str = enumeration.nextElement();
+      stringBuffer.append("<tr><td>" + str + "</td><td>" + (String)installedSpecificLangDescTable.get(str) + "</td>></tr>\n");
+    } 
+    return stringBuffer.toString();
+  }
+  
+  public static boolean isEnabled(String paramString) {
+    boolean bool = false;
+    String str = "oracle.apps.fnd.sso.SessionMgr.isEnabled(String)";
+    WebAppsContext webAppsContext = null;
+    boolean bool1 = false;
+    if (Utils.isAppsContextAvailable()) {
+      webAppsContext = Utils.getAppsContext();
+      bool1 = true;
+    } else {
+      webAppsContext = Utils.getAppsContext();
+    } 
+    if (((AppsLog)webAppsContext.getLog()).isEnabled(2)) {
+      Utils.writeToLog(str, "BEGIN", webAppsContext, 2);
+      Utils.writeToLog(str, "Paramlist username: " + paramString, webAppsContext, 2);
+    } 
+    try {
+      bool = isEnabled(paramString, webAppsContext);
+    } finally {
+      if (((AppsLog)webAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "END: returnValue: " + bool, webAppsContext, 2); 
+      if (!bool1)
+        Utils.releaseAppsContext(); 
+    } 
+    return bool;
+  }
+  
+  public static boolean isEnabled(String paramString, WebAppsContext paramWebAppsContext) {
+    boolean bool = false;
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.isEnabled(String, WebAppsContext)";
+    String str2 = "SELECT ENCRYPTED_FOUNDATION_PASSWORD,ENCRYPTED_USER_PASSWORD,USER_ID   FROM FND_USER WHERE USER_NAME=:1    AND (START_DATE <= SYSDATE)    AND (END_DATE IS NULL OR END_DATE > SYSDATE)";
+    OraclePreparedStatement oraclePreparedStatement = null;
+    ResultSet resultSet = null;
+    Connection connection = null;
+    if (paramWebAppsContext == null)
+      throw new RuntimeException("Web Apps Context is null"); 
+    if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2)) {
+      Utils.writeToLog(str1, "BEGIN", paramWebAppsContext, 2);
+      Utils.writeToLog(str1, "Paramlist username: " + paramString, paramWebAppsContext, 2);
+    } 
+    try {
+      connection = Utils.getConnection(paramWebAppsContext);
+      oraclePreparedStatement = (OraclePreparedStatement)connection.prepareStatement(str2);
+      oraclePreparedStatement.defineColumnType(1, 12, 100);
+      oraclePreparedStatement.defineColumnType(2, 12, 100);
+      oraclePreparedStatement.defineColumnType(3, 12, 15);
+      oraclePreparedStatement.setString(1, paramString);
+      resultSet = oraclePreparedStatement.executeQuery();
+      if (resultSet.next())
+        bool = true; 
+    } catch (Exception exception) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str1, "Exception occurred: " + Utils.getExceptionStackTrace(exception), paramWebAppsContext, 4); 
+    } finally {
+      if (oraclePreparedStatement != null)
+        try {
+          oraclePreparedStatement.close();
+        } catch (Exception exception) {} 
+      if (resultSet != null)
+        try {
+          resultSet.close();
+        } catch (Exception exception) {} 
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str1, "END: returnValue: " + bool, paramWebAppsContext, 2); 
+    } 
+    return bool;
+  }
+  
+  public static void forwardToHomePage(OAPageContext paramOAPageContext, WebAppsContext paramWebAppsContext) {
+    String str = "oracle.apps.fnd.sso.SessionMgr.forwardToHomePage(OAPageContext, WebAppsContext)";
+    try {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "BEGIN", paramWebAppsContext, 2); 
+      DataObject dataObject = paramOAPageContext.getNamedDataObject("_SessionParameters");
+      HttpServletRequest httpServletRequest = (HttpServletRequest)dataObject.selectValue(null, "HttpServletRequest");
+      HttpServletResponse httpServletResponse = (HttpServletResponse)dataObject.selectValue(null, "HttpServletResponse");
+      String str1 = getSessionCookieName(paramWebAppsContext);
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "ssoCookieName: " + str1, paramWebAppsContext); 
+      if (str1 == null)
+        throw new RuntimeException(getMessage(paramWebAppsContext, "FND-9914")); 
+      String str2 = paramWebAppsContext.getSessionCookieValue();
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "From proxy ssoCookieValue: " + str2, paramWebAppsContext); 
+      String str3 = paramWebAppsContext.getEnvStore().getEnv("ICX_PV_SESSION_MODE");
+      boolean bool1 = (paramWebAppsContext.isProxySession() != null) ? true : false;
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "Is proxy: " + bool1, paramWebAppsContext); 
+      if (!bool1)
+        if ((str3 != null && str3.equals("115P")) || !Utils.isSSOMode()) {
+          if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+            Utils.writeToLog(str, "Local session : " + str2, paramWebAppsContext); 
+          if (str2 == null)
+            throw new RuntimeException(getMessage(paramWebAppsContext, "FND-9914")); 
+        } else {
+          if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+            Utils.writeToLog(str, "SSO Enabled hence not using session", paramWebAppsContext); 
+          if (str2 != null && !str2.equals("") && !str2.equals("-1")) {
+            if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+              Utils.writeToLog(str, "Session not INVALID", paramWebAppsContext); 
+            boolean bool = paramWebAppsContext.disableUserSession(str2);
+            if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+              Utils.writeToLog(str, "Session disabled:: " + bool, paramWebAppsContext); 
+          } 
+          str2 = "-1";
+        }  
+      Cookie cookie = new Cookie(str1, str2);
+      String str4 = null;
+      str4 = getServerDomain(httpServletRequest, httpServletResponse);
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "ssoCookieDomain from sso: " + str4, paramWebAppsContext); 
+      if (str4 != null && !"NONE".equals(str4))
+        cookie.setDomain(str4); 
+      boolean bool2 = false;
+      if (bool2) {
+        cookie.setPath("/; HTTPOnly");
+      } else {
+        cookie.setPath("/");
+      } 
+      if (isSSLMode(httpServletRequest))
+        cookie.setSecure(true); 
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "Adding Cookie to resp object", paramWebAppsContext); 
+      httpServletResponse.addCookie(cookie);
+      String str5 = SSOManager.getHomePageURL(paramWebAppsContext);
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(1))
+        Utils.writeToLog(str, "Homepage URl:: " + str5, paramWebAppsContext); 
+      paramOAPageContext.sendRedirect(str5);
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "END", paramWebAppsContext, 2); 
+    } catch (Exception exception) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str, "Exception Occurred:: " + Utils.getExceptionStackTrace(exception), paramWebAppsContext, 4); 
+    } finally {}
+  }
+  
+  public static String findGuid(String paramString, WebAppsContext paramWebAppsContext) {
+    OracleCallableStatement oracleCallableStatement = null;
+    String str = "oracle.apps.fnd.sso.SessionMgr.findGuid";
+    AppsLog appsLog = null;
+    try {
+      appsLog = (AppsLog)paramWebAppsContext.getLog();
+      Connection connection = paramWebAppsContext.getJDBCConnection();
+      if (appsLog.isEnabled(2))
+        appsLog.write(str, " BEGIN : ssoUserName=" + paramString, 2); 
+      String str1 = "BEGIN :1 := FND_LDAP_USER.GET_USER_GUID_AND_COUNT(:2,:3); END; ";
+      if (appsLog.isEnabled(1))
+        appsLog.write(str, " Will execute:" + str1, 1); 
+      oracleCallableStatement = (OracleCallableStatement)connection.prepareCall(str1);
+      oracleCallableStatement.setString(2, paramString);
+      oracleCallableStatement.registerOutParameter(1, 12, 0, 100);
+      oracleCallableStatement.registerOutParameter(3, 2);
+      oracleCallableStatement.execute();
+      int i = oracleCallableStatement.getInt(3);
+      String str2 = oracleCallableStatement.getString(1);
+      oracleCallableStatement.close();
+      oracleCallableStatement = null;
+      if (appsLog.isEnabled(1))
+        appsLog.write(str, " PL returned guid:" + str2 + " n:" + i, 1); 
+      if (i != 1) {
+        if (appsLog.isEnabled(1))
+          appsLog.write(str, " END : return null (wasn't exactly 1 found)", 1); 
+        return null;
+      } 
+      if (appsLog.isEnabled(1))
+        appsLog.write(str, " END : return GUID= " + str2, 1); 
+      return str2;
+    } catch (Exception exception) {
+      paramWebAppsContext.getErrorStack().addStackTrace(exception);
+      if (appsLog.isEnabled(6))
+        appsLog.write(str, exception, 6); 
+      if (appsLog.isEnabled(1))
+        appsLog.write(str, " END : Finish with errors, returning null", 1); 
+      return null;
+    } finally {
+      if (oracleCallableStatement != null)
+        try {
+          oracleCallableStatement.close();
+        } catch (Exception exception) {} 
+    } 
+  }
+  
+  static String autoLinkEnabled = null;
+  
+  public static String createPortalSession(String paramString1, String paramString2, WebAppsContext paramWebAppsContext) {
+    String str1 = "oracle.apps.fnd.sso.SessionMgr.createPortalSession";
+    AppsLog appsLog = null;
+    WebAppsContext webAppsContext = Utils.swapContext(paramWebAppsContext);
+    paramString1 = paramString1.toUpperCase();
+    String str2 = null;
+    try {
+      if (paramWebAppsContext == null)
+        throw new RuntimeException("Internal error: got null WebAppsContext at " + str1); 
+      if (paramString2 == null)
+        throw new RuntimeException("Internal error: got null ssoUserguid at " + str1); 
+      appsLog = (AppsLog)paramWebAppsContext.getLog();
+      Connection connection = paramWebAppsContext.getJDBCConnection();
+      String str3 = Utils.getAppsUser(paramString2, connection);
+      if (str3 != null) {
+        if (appsLog.isEnabled(1))
+          appsLog.write(str1, " apps Username found=" + str3, 1); 
+      } else {
+        if (appsLog.isEnabled(1))
+          appsLog.write(str1, " no linked Apps User found", 1); 
+        SSOAppsUser sSOAppsUser = new SSOAppsUser(paramString1, paramString2);
+        Profiles profiles = new Profiles((AppsContext)paramWebAppsContext);
+        autoLinkEnabled = profiles.getSiteLevelProfile("APPS_SSO_AUTO_LINK_USER");
+        if (autoLinkEnabled == null || "".equals(autoLinkEnabled))
+          autoLinkEnabled = "N"; 
+        if ("Y".equals(autoLinkEnabled) && SSOCommon.hasLinkableAppsUser(paramString1)) {
+          str3 = paramString1;
+          if (appsLog.isEnabled(1)) {
+            appsLog.write(str1, " user with same name exists ", 1);
+            appsLog.write(str1, "APPS_SSO_LOCAL_LOGIN=" + SSOCommon.getUserLevelLoginMode(str3), 1);
+          } 
+          sSOAppsUser.updateUserGuid(str3, SSOCommon.getUserLevelLoginMode(str3));
+          connection.commit();
+          if (appsLog.isEnabled(1))
+            appsLog.write(str1, "AUTOLINK: GUID updated and commited ", 1); 
+        } else if ("CREATE_LINK".equals(autoLinkEnabled)) {
+          str3 = paramString1;
+          if (appsLog.isEnabled(1))
+            appsLog.write(str1, " CREATE_LINK: Create and Link " + str3 + " with guid=" + paramString2, 1); 
+          SSOUtil.createUserOnDemand(str3, paramString2, connection);
+          connection.commit();
+          if (appsLog.isEnabled(1))
+            appsLog.write(str1, " CREATE_LINK: Created and commited", 1); 
+        } else {
+          ErrorStack errorStack = paramWebAppsContext.getErrorStack();
+          errorStack.clear();
+          errorStack.addMessage("FND", "FND_SSO_ACCOUNT_NOT_SETUP");
+          if (appsLog.isEnabled(4)) {
+            appsLog.write(str1, "End with FND_SSO_ACCOUNT_NOT_SETUP ", 4);
+            return null;
+          } 
+        } 
+      } 
+      if (appsLog.isEnabled(1))
+        appsLog.write(str1, " About to create a session for " + str3, 1); 
+      String str4 = paramWebAppsContext.getProfileStore().getSpecificProfile("ICX_LANGUAGE", str3, null, null);
+      if (appsLog.isEnabled(1)) {
+        appsLog.write(str1, " About to create a session for " + str3, 1);
+        appsLog.write(str1, "         langCode: " + str4, 1);
+        appsLog.write(str1, "         HOME_URL: " + SSOManager.getPostLogoutHomeUrl(paramWebAppsContext), 1);
+      } 
+      str4 = paramWebAppsContext.getLangCode(str4.toUpperCase());
+      if (appsLog.isEnabled(1))
+        appsLog.write(str1, "langCode value for Lang : " + str4, 1); 
+      paramWebAppsContext.getEnvStore().setEnv("ICX_PV_SESSION_MODE", "115X");
+      boolean bool = paramWebAppsContext.createSession(str3, str4);
+      if (bool) {
+        if (appsLog.isEnabled(1))
+          appsLog.write(str1, " session created, who knows if commited", 1); 
+        str2 = SSOUtil.getPortalUrl();
+        paramWebAppsContext.setSessionAttribute("FND_HOME_PAGE_URL", str2);
+        String str = paramWebAppsContext.getSessionCookieValue();
+        if (appsLog.isEnabled(2))
+          appsLog.write(str1, " END : session encrypted id=" + str, 2); 
+        if (appsLog.isEnabled(1))
+          appsLog.write(str1, "Before storePostLogoutUrl [4924], user:" + paramWebAppsContext.getUserName() + ", resp:" + paramWebAppsContext.getRespId() + ", appId:" + paramWebAppsContext.getRespApplId(), 1); 
+        paramWebAppsContext.getProfileStore().clear();
+        SSOManager.storePostLogoutUrl(paramWebAppsContext, str, true, str4, str2);
+        return str;
+      } 
+      if (appsLog.isEnabled(2))
+        appsLog.write(str1, " END : failed at WebAppContext, see stack for details.Returning NULL", 2); 
+      return null;
+    } catch (Exception exception) {
+      if (paramWebAppsContext != null) {
+        paramWebAppsContext.getErrorStack().addStackTrace(exception);
+        appsLog = (AppsLog)paramWebAppsContext.getLog();
+        if (appsLog.isEnabled(6))
+          appsLog.write(str1, exception, 6); 
+        return null;
+      } 
+      throw (RuntimeException)exception;
+    } finally {
+      Utils.swapContext(webAppsContext);
+    } 
+  }
+  
+  public static String createPortalSession(String paramString, WebAppsContext paramWebAppsContext) {
+    String str = "oracle.apps.fnd.sso.SessionMgr.createPortalSession(no giud)";
+    AppsLog appsLog = null;
+    try {
+      if (paramWebAppsContext == null)
+        throw new RuntimeException("Internal error: got null WebAppsContext at " + str); 
+      ErrorStack errorStack = paramWebAppsContext.getErrorStack();
+      errorStack.clear();
+      appsLog = (AppsLog)paramWebAppsContext.getLog();
+      if (appsLog.isEnabled(2)) {
+        appsLog.write(str, "BEGIN", 2);
+        appsLog.write(str, " username=" + ((paramString != null) ? paramString : "**NULL**"), 2);
+        appsLog.write(str, " context=" + paramWebAppsContext.toString(), 2);
+      } 
+      if (paramString == null) {
+        if (appsLog.isEnabled(1))
+          appsLog.write(str, " Cannot proceed with username=null", 1); 
+        errorStack.addMessage("FND", "FND_SSO_CL_USER_NULL");
+        if (appsLog.isEnabled(4)) {
+          appsLog.write(str, "End with FND_SSO_CL_USER_NULL ", 4);
+          return null;
+        } 
+      } 
+      String str1 = findGuid(paramString, paramWebAppsContext);
+      if (str1 != null)
+        return createPortalSession(paramString, str1, paramWebAppsContext); 
+      paramWebAppsContext.getErrorStack().addMessage("FND", "FND_SSO_USER_NOT_FOUND");
+      if (appsLog.isEnabled(4))
+        appsLog.write(str, "End with FND_SSO_USER_NOT_FOUND ", 4); 
+      return null;
+    } catch (Exception exception) {
+      if (paramWebAppsContext != null) {
+        paramWebAppsContext.getErrorStack().addStackTrace(exception);
+        appsLog = (AppsLog)paramWebAppsContext.getLog();
+        if (appsLog.isEnabled(6))
+          appsLog.write(str, exception, 6); 
+        return null;
+      } 
+      throw (RuntimeException)exception;
+    } 
+  }
+  
+  private static boolean allowLocalLogin(String paramString, WebAppsContext paramWebAppsContext) {
+    boolean bool = true;
+    String str = "oracle.apps.fnd.sso.SessionMgr.allowLocalLogin";
+    boolean bool1 = false;
+    boolean bool2 = false;
+    boolean bool3 = Utils.isSSOMode();
+    if (paramWebAppsContext == null)
+      throw new RuntimeException("WebAppsContext object is null"); 
+    AppsLog appsLog = (AppsLog)paramWebAppsContext.getLog();
+    bool1 = appsLog.isEnabled(str, 1);
+    bool2 = appsLog.isEnabled(str, 2);
+    if (bool2)
+      appsLog.write(str, "BEGIN, is sso enabled? " + bool3 + ", username:" + paramString, 2); 
+    if (bool3 && !"SYSADMIN".equalsIgnoreCase(paramString))
+      if (paramString != null && !paramString.equals("")) {
+        String str1 = Integer.toString(Utils.getUserId(paramString.toUpperCase()));
+        if (bool1)
+          Utils.writeToLog(str, "username=" + paramString + ", userid=" + str1, paramWebAppsContext, 1); 
+        String str2 = paramWebAppsContext.getProfileStore().getSpecificProfile("APPS_SSO_LOCAL_LOGIN", str1, "-1", "-1");
+        if (str2 != null && "SSO".equals(str2)) {
+          bool = false;
+          Message message = new Message("FND", "FND_SSO_NOT_AUTHENTICATED");
+          paramWebAppsContext.getErrorStack().addMessage(message);
+          if (bool1)
+            Utils.writeToLog(str, "username " + paramString + " should not use the LOCAL login page per the APPS_SSO_LOCAL_LOGIN profile value (" + str2 + ")", paramWebAppsContext, 1); 
+        } 
+      } else {
+        bool = false;
+      }  
+    if (bool2)
+      appsLog.write(str, "END return:" + bool, 2); 
+    return bool;
+  }
+  
+  public static void reauthFndSignOn(WebAppsContext paramWebAppsContext, int paramInt) {
+    String str = "oracle.apps.fnd.sso.SessionMgr.reauthFndSignOn(WebAppsContext, int, String)";
+    OracleCallableStatement oracleCallableStatement = null;
+    OracleConnection oracleConnection = null;
+    try {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "BEGIN", paramWebAppsContext, 2); 
+      oracleConnection = (OracleConnection)paramWebAppsContext.getJDBCConnection();
+      String str1 = "declare PRAGMA AUTONOMOUS_TRANSACTION;l_session_id number := :1;begin fnd_signon.audit_user_reauth(l_session_id); commit;exception when others then rollback;end;";
+      oracleCallableStatement = (OracleCallableStatement)oracleConnection.prepareCall(str1);
+      oracleCallableStatement.setBigDecimal(1, new BigDecimal(paramInt));
+      oracleCallableStatement.execute();
+    } catch (Exception exception) {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(4))
+        Utils.writeToLog(str, "Exception Occurred : " + Utils.getExceptionStackTrace(exception), paramWebAppsContext, 4); 
+      throw new RuntimeException(Utils.getExceptionStackTrace(exception));
+    } finally {
+      if (((AppsLog)paramWebAppsContext.getLog()).isEnabled(2))
+        Utils.writeToLog(str, "END", paramWebAppsContext, 2); 
+      if (oracleCallableStatement != null)
+        try {
+          oracleCallableStatement.close();
+        } catch (Exception exception) {} 
+    } 
+  }
+}

@@ -1,0 +1,66 @@
+/*$Header: XXSTlogin.js 001.000.000 2021/04/09 12:25:56 rpathania $*/
+
+@charset "UTF-8";
+
+.img-container {
+	text-align: left;
+	text-color: white;
+}
+
+.logo {
+	margin: 30px;
+}
+
+label {
+	color: #e8e8e8;
+	font-weight: bold;
+	float: left;
+	padding: 5px;
+}
+
+.login_panel {
+	margin: auto;
+	margin-top: 2%;
+	margin-bottom: 2%;
+	width: 300px;
+	box-sizing: border-box;
+	padding: 45px 20px;
+	border-radius: 10px;
+	border: 1px solid rgba(255, 255, 255, .25);
+	background-color: rgba(255, 255, 255, 0.1);
+}
+
+input.inp {
+	border-color: #3480B0;
+	border-radius: 5px /*5px*/;
+	border-style: solid;
+	border-width: 1px;
+	box-shadow: 2px 2px 5px rgba(59, 60, 162, 0.5);
+	height: 1.8em;
+	width: 16.7em;
+}
+
+.OraButton {
+	padding: 6px;
+	font-size: 12px;
+	color: #000;
+	font-weight: bold;
+	background-color: #e4e8ea;
+	background: linear-gradient(bottom, #E4E8EA 0%, #E8EBED 50%, #f1f3f4 96.36%, #fff
+		100%),
+		linear-gradient(bottom, #E4E8EA 0%, #e8ebed 50%, #f1f3f4 96.36%, #fff
+		100%);
+	box-shadow: inset 0px 1px 0px #FFFFFF;
+	border: 1px solid #c4ced7;
+	border-radius: 2px;
+}
+
+.control_box {
+	margin: 25px 0;
+}
+
+.control_box.min_margin {
+	margin: 10px 0;
+}
+
+

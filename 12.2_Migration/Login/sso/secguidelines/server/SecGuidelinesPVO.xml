@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE ViewObject SYSTEM "jbo_03_01.dtd">
+
+<!-- +======================================================================+ -->
+<!-- |    Copyright (c) 2005, 2017 Oracle and/or its affiliates.            | -->
+<!-- |                         All rights reserved.                         | -->
+<!-- |                           Version 12.0.0                             | -->
+<!-- +======================================================================+ -->
+
+<!-- $Header: SecGuidelinesPVO.xml 120.0.12010000.2 2017/04/19 12:12:14 saarvapa noship $ -->
+
+<ViewObject
+   Name="SecGuidelinesPVO"
+   BindingStyle="OracleName"
+   CustomQuery="true"
+   RowClass="oracle.apps.fnd.framework.server.OAViewRowImpl"
+   ComponentClass="oracle.apps.fnd.framework.server.OAViewObjectImpl"
+   FetchMode="FETCH_AS_NEEDED"
+   Passivate="All"
+   UseGlueCode="false" >
+   <DesignTime>
+      <Attr Name="_version" Value="10.1.3.41.57" />
+      <Attr Name="_codeGenFlag2" Value="Access" />
+   </DesignTime>
+   <ViewAttribute
+      Name="RowKey"
+      IsQueriable="false"
+      IsPersistent="false"
+      Type="oracle.jbo.domain.Number"
+      ColumnType="NUMBER"
+      AliasName="VIEW_ATTR"
+      SQLType="NUMERIC" >
+   </ViewAttribute>
+   <ViewAttribute
+      Name="UnlockOptionsRendered"
+      IsSelected="false"
+      IsQueriable="false"
+      IsPersistent="false"
+      Type="java.lang.Boolean"
+      ColumnType="NUMBER"
+      AliasName="VIEW_ATTR"
+      SQLType="BIT" >
+   </ViewAttribute>
+   <AttrArray Name="KeyAttributes">
+      <Item Value="RowKey" />
+   </AttrArray>
+</ViewObject>

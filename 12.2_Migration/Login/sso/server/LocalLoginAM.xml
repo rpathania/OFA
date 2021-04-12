@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding='windows-1252'?>
+<!DOCTYPE AppModule SYSTEM "jbo_03_01.dtd">
+<!-- $Header: LocalLoginAM.xml 120.1 2005/07/02 02:05:15 appldev noship $ -->
+
+<AppModule
+   Name="LocalLoginAM"
+   ComponentClass="oracle.apps.fnd.sso.server.LocalLoginAMImpl" >
+   <DesignTime>
+      <Attr Name="_isCodegen" Value="true" />
+      <Attr Name="_version" Value="9.0.3.10.31" />
+      <Attr Name="_deployType" Value="0" />
+      <Attr Name="_exportName" Value="LocalLoginAM" />
+   </DesignTime>
+</AppModule>

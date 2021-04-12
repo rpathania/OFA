@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding='windows-1252'?>
+<!DOCTYPE ViewObject SYSTEM "jbo_03_01.dtd">
+
+<!-- $Header: SSOAppsUsersVO.xml 120.1 2005/07/02 02:05:17 appldev noship $ -->
+
+<ViewObject
+   Name="SSOAppsUsersVO"
+   BindingStyle="Oracle"
+   CustomQuery="true"
+   RowClass="oracle.apps.fnd.framework.server.OAViewRowImpl"
+   ComponentClass="oracle.apps.fnd.framework.server.OAViewObjectImpl"
+   MsgBundleClass="oracle.jbo.common.JboResourceBundle"
+   UseGlueCode="false" >
+   <DesignTime>
+      <Attr Name="_version" Value="9.0.3.10.62" />
+      <Attr Name="_CodeGenFlagNew" Value="4" />
+   </DesignTime>
+   <ViewAttribute
+      Name="Password"
+      IsQueriable="false"
+      IsPersistent="false"
+      Precision="255"
+      Type="java.lang.String"
+      AliasName="VIEW_ATTR"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="Guid"
+      IsQueriable="false"
+      IsPersistent="false"
+      Precision="255"
+      Type="java.lang.String"
+      AliasName="VIEW_ATTR"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="Name"
+      IsQueriable="false"
+      IsPersistent="false"
+      Precision="255"
+      Type="java.lang.String"
+      AliasName="VIEW_ATTR"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="Id"
+      IsQueriable="false"
+      IsPersistent="false"
+      Precision="255"
+      Type="java.math.BigDecimal"
+      AliasName="VIEW_ATTR"
+      ColumnType="VARCHAR2"
+      SQLType="NUMERIC" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="RequestUrl"
+      IsQueriable="false"
+      IsPersistent="false"
+      Precision="255"
+      Type="java.lang.String"
+      AliasName="VIEW_ATTR"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="Description"
+      IsQueriable="false"
+      IsPersistent="false"
+      Precision="255"
+      Type="java.lang.String"
+      AliasName="VIEW_ATTR"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="LastName"
+      IsQueriable="false"
+      IsPersistent="false"
+      Precision="255"
+      Type="java.lang.String"
+      AliasName="VIEW_ATTR"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="FirstName"
+      IsQueriable="false"
+      IsPersistent="false"
+      Precision="255"
+      Type="java.lang.String"
+      AliasName="VIEW_ATTR"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="Synchronizable"
+      IsQueriable="false"
+      IsPersistent="false"
+      Precision="1"
+      Type="java.lang.String"
+      AliasName="VIEW_ATTR"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="DefaultAccount"
+      IsQueriable="false"
+      IsPersistent="false"
+      Precision="1"
+      Type="java.lang.String"
+      AliasName="VIEW_ATTR"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="CurrentAccount"
+      IsQueriable="false"
+      IsPersistent="false"
+      Precision="1"
+      Type="java.lang.String"
+      AliasName="VIEW_ATTR"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+   <ViewAttribute
+      Name="Select"
+      IsQueriable="false"
+      IsPersistent="false"
+      Precision="255"
+      Type="java.lang.String"
+      AliasName="VIEW_ATTR"
+      ColumnType="VARCHAR2"
+      SQLType="VARCHAR" >
+      <DesignTime>
+         <Attr Name="_DisplaySize" Value="0" />
+      </DesignTime>
+   </ViewAttribute>
+</ViewObject>
